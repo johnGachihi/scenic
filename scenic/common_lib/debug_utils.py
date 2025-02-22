@@ -134,8 +134,8 @@ def compute_flops(
       dummy_input.append(jnp.zeros(in_st.shape, in_st.dtype))
     else:
       dummy_input.append(None)
-
-  analysis = jax.jit(flax_model_apply_fn).lower(*dummy_input).cost_analysis()
+  
+  analysis = jax.jit(flax_model_apply_fn).lower(*dummy_input).compile().cost_analysis()
   flops = analysis['flops']
   if fuse_multiply_add:
     flops = flops / 2

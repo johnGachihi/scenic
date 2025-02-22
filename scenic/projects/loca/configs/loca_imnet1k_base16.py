@@ -17,7 +17,7 @@
 
 import ml_collections
 
-VARIANT = 'B/16'
+VARIANT = 'Ti/16'
 _IMAGENET_TRAIN_SIZE = 1281167
 MEAN_RGB = [0.485, 0.456, 0.406]
 STDDEV_RGB = [0.229, 0.224, 0.225]
@@ -61,7 +61,7 @@ def get_config():
       '|keep("reference"' + ''.join([f', "query{i}", "query{i}_box", "query{i}_mask"' for i in range(n_queries)]) + ')')
   # For IMAGENET-1K
   config.dataset_configs.dataset = 'imagenet2012'
-  config.dataset_configs.train_split = 'train'
+  config.dataset_configs.train_split = 'validation'
 
   # Model.
   version, patch = VARIANT.split('/')
@@ -103,7 +103,7 @@ def get_config():
   # Training.
   config.max_grad_norm = 1
   config.num_training_epochs = 100
-  config.batch_size = 1024
+  config.batch_size = 4
   steps_per_epoch = _IMAGENET_TRAIN_SIZE // config.batch_size
   config.rng_seed = 42
   total_steps = config.num_training_epochs * steps_per_epoch
@@ -131,8 +131,8 @@ def get_config():
   config.write_summary = True
   config.xprof = True  # Profile using xprof.
   config.checkpoint = True  # Do checkpointing.
-  config.checkpoint_steps = 5000
-  config.log_summary_steps = 1000
+  config.checkpoint_steps = 1000
+  config.log_summary_steps = 500
 
   return config
 

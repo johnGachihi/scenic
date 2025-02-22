@@ -1,0 +1,395 @@
+2025-02-20 08:28:53.768026: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2025-02-20 08:28:53.768109: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2025-02-20 08:28:53.770141: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+/home/admin/anaconda3/envs/flax/lib/python3.10/site-packages/tensorflow_addons/utils/tfa_eol_msg.py:23: UserWarning: 
+
+TensorFlow Addons (TFA) has ended development and introduction of new features.
+TFA has entered a minimal maintenance and release mode until a planned end of life in May 2024.
+Please modify downstream libraries to take dependencies from other repositories in our TensorFlow community (e.g. Keras, Keras-CV, and Keras-NLP). 
+
+For more information see: https://github.com/tensorflow/addons/issues/2807 
+
+  warnings.warn(
+INFO:2025-02-20 08:28:57,550:jax._src.xla_bridge:945: Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+I0220 08:28:57.550620 140599657996928 xla_bridge.py:945] Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+INFO:2025-02-20 08:28:57,551:jax._src.xla_bridge:945: Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+I0220 08:28:57.551511 140599657996928 xla_bridge.py:945] Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+I0220 08:28:57.553120 140599657996928 app.py:92] JAX host: 0 / 1
+I0220 08:28:57.553182 140599657996928 app.py:93] JAX devices: [CudaDevice(id=0)]
+I0220 08:28:57.553402 140599657996928 local.py:45] Setting task status: host_id: 0, host_count: 1
+I0220 08:28:57.553572 140599657996928 local.py:50] Created artifact Workdir of type ArtifactType.DIRECTORY and value loca_base/.
+I0220 08:28:58.182716 140599657996928 app.py:104] RNG: [ 0 42]
+I0220 08:28:58.483202 140599657996928 train_utils.py:380] device_count: 1
+I0220 08:28:58.483491 140599657996928 train_utils.py:381] num_hosts : 1
+I0220 08:28:58.483535 140599657996928 train_utils.py:382] host_id : 0
+I0220 08:28:58.483752 140599657996928 train_utils.py:404] local_batch_size : 16
+I0220 08:28:58.483792 140599657996928 train_utils.py:405] device_batch_size : 16
+I0220 08:28:58.483953 140599657996928 loca_dataset.py:57] Loading train split of the imagenet2012 for LOCA training.
+I0220 08:28:58.494023 140599657996928 dataset_info.py:690] Load dataset info from /home/admin/tensorflow_datasets/dataset_lib/5.1.0
+I0220 08:28:58.497694 140599657996928 dataset_builder.py:638] Reusing dataset dataset_lib (/home/admin/tensorflow_datasets/dataset_lib/5.1.0)
+I0220 08:28:58.503899 140599657996928 reader.py:261] Creating a tf.data.Dataset reading 64 files located in folders: /home/admin/tensorflow_datasets/dataset_lib/5.1.0.
+WARNING:tensorflow:From /home/admin/anaconda3/envs/flax/lib/python3.10/site-packages/tensorflow_datasets/core/reader.py:101: CounterV2 (from tensorflow.python.data.experimental.ops.counter) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `tf.data.Dataset.counter(...)` instead.
+W0220 08:28:58.522988 140599657996928 deprecation.py:50] From /home/admin/anaconda3/envs/flax/lib/python3.10/site-packages/tensorflow_datasets/core/reader.py:101: CounterV2 (from tensorflow.python.data.experimental.ops.counter) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `tf.data.Dataset.counter(...)` instead.
+I0220 08:28:58.555897 140599657996928 logging_logger.py:49] Constructing tf.data.Dataset dataset_lib for split _EvenSplit(split='validation', index=0, count=1, drop_remainder=True), from /home/admin/tensorflow_datasets/dataset_lib/5.1.0
+I0220 08:28:58.652084 140599657996928 api.py:460] Data before pre-processing:
+{'file_name': <tf.Tensor 'args_0:0' shape=() dtype=string>, 'image': <tf.Tensor 'args_1:0' shape=() dtype=string>, 'label': <tf.Tensor 'args_2:0' shape=() dtype=int64>, 'tfds_id': <tf.Tensor 'args_3:0' shape=() dtype=string>}
+I0220 08:29:02.673950 140599657996928 api.py:460] Data after pre-processing:
+{'reference': <tf.Tensor 'truediv_1:0' shape=(224, 224, 3) dtype=float32>, 'query0': <tf.Tensor 'truediv_72:0' shape=(224, 224, 3) dtype=float32>, 'query1': <tf.Tensor 'truediv_73:0' shape=(96, 96, 3) dtype=float32>, 'query2': <tf.Tensor 'truediv_74:0' shape=(96, 96, 3) dtype=float32>, 'query3': <tf.Tensor 'truediv_75:0' shape=(96, 96, 3) dtype=float32>, 'query4': <tf.Tensor 'truediv_76:0' shape=(96, 96, 3) dtype=float32>, 'query5': <tf.Tensor 'truediv_77:0' shape=(96, 96, 3) dtype=float32>, 'query6': <tf.Tensor 'truediv_78:0' shape=(96, 96, 3) dtype=float32>, 'query7': <tf.Tensor 'truediv_79:0' shape=(96, 96, 3) dtype=float32>, 'query8': <tf.Tensor 'truediv_80:0' shape=(96, 96, 3) dtype=float32>, 'query9': <tf.Tensor 'truediv_81:0' shape=(96, 96, 3) dtype=float32>, 'query0_mask': <tf.Tensor 'stateless_random_flip_left_right_1/Identity:0' shape=(14, 14, 1) dtype=int32>, 'query0_box': <tf.Tensor 'concat_1:0' shape=(5,) dtype=float32>, 'query1_mask': <tf.Tensor 'stateless_random_flip_left_right_3/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query1_box': <tf.Tensor 'concat_2:0' shape=(5,) dtype=float32>, 'query2_mask': <tf.Tensor 'stateless_random_flip_left_right_5/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query2_box': <tf.Tensor 'concat_3:0' shape=(5,) dtype=float32>, 'query3_mask': <tf.Tensor 'stateless_random_flip_left_right_7/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query3_box': <tf.Tensor 'concat_4:0' shape=(5,) dtype=float32>, 'query4_mask': <tf.Tensor 'stateless_random_flip_left_right_9/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query4_box': <tf.Tensor 'concat_5:0' shape=(5,) dtype=float32>, 'query5_mask': <tf.Tensor 'stateless_random_flip_left_right_11/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query5_box': <tf.Tensor 'concat_6:0' shape=(5,) dtype=float32>, 'query6_mask': <tf.Tensor 'stateless_random_flip_left_right_13/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query6_box': <tf.Tensor 'concat_7:0' shape=(5,) dtype=float32>, 'query7_mask': <tf.Tensor 'stateless_random_flip_left_right_15/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query7_box': <tf.Tensor 'concat_8:0' shape=(5,) dtype=float32>, 'query8_mask': <tf.Tensor 'stateless_random_flip_left_right_17/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query8_box': <tf.Tensor 'concat_9:0' shape=(5,) dtype=float32>, 'query9_mask': <tf.Tensor 'stateless_random_flip_left_right_19/Identity:0' shape=(6, 6, 1) dtype=int32>, 'query9_box': <tf.Tensor 'concat_10:0' shape=(5,) dtype=float32>}
+WARNING:tensorflow:From /home/admin/john/scenic/scenic/dataset_lib/dataset_utils.py:870: ignore_errors (from tensorflow.python.data.experimental.ops.error_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `tf.data.Dataset.ignore_errors` instead.
+W0220 08:29:02.966305 140599657996928 deprecation.py:50] From /home/admin/john/scenic/scenic/dataset_lib/dataset_utils.py:870: ignore_errors (from tensorflow.python.data.experimental.ops.error_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `tf.data.Dataset.ignore_errors` instead.
+I0220 08:29:02.973318 140599657996928 dataset_info.py:690] Load dataset info from /home/admin/tensorflow_datasets/dataset_lib/5.1.0
+I0220 08:29:02.975440 140599657996928 dataset_builder.py:638] Reusing dataset dataset_lib (/home/admin/tensorflow_datasets/dataset_lib/5.1.0)
+I0220 08:29:12.368942 140599657996928 parameter_overview.py:353] 
++-------------------------------------------------------------------+------------------+---------+-----------+-----------+----------+
+| Name                                                              | Shape            | Dtype   | Size      | Mean      | Std      |
++-------------------------------------------------------------------+------------------+---------+-----------+-----------+----------+
+| ToTokenSequence_0/embedding/bias                                  | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| ToTokenSequence_0/embedding/kernel                                | (16, 16, 3, 768) | float32 | 589,824   | 1.37e-05  | 0.0361   |
+| ToTokenSequence_0/posembed_input                                  | (1, 14, 14, 768) | float32 | 150,528   | -1.46e-05 | 0.0361   |
+| cross_attention_block/LayerNorm_0/bias                            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| cross_attention_block/LayerNorm_0/scale                           | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| cross_attention_block/LayerNorm_1/bias                            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| cross_attention_block/LayerNorm_1/scale                           | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| cross_attention_block/LayerNorm_2/bias                            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| cross_attention_block/LayerNorm_2/scale                           | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| cross_attention_block/MlpBlock_0/Dense_0/bias                     | (3072,)          | float32 | 3,072     | 2.27e-08  | 9.78e-07 |
+| cross_attention_block/MlpBlock_0/Dense_0/kernel                   | (768, 3072)      | float32 | 2,359,296 | -1.14e-06 | 0.0228   |
+| cross_attention_block/MlpBlock_0/Dense_1/bias                     | (768,)           | float32 | 768       | 3.56e-09  | 9.73e-07 |
+| cross_attention_block/MlpBlock_0/Dense_1/kernel                   | (3072, 768)      | float32 | 2,359,296 | -3.72e-06 | 0.0228   |
+| cross_attention_block/MultiHeadDotProductAttention_0/key/bias     | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| cross_attention_block/MultiHeadDotProductAttention_0/key/kernel   | (768, 12, 64)    | float32 | 589,824   | 5.43e-05  | 0.0361   |
+| cross_attention_block/MultiHeadDotProductAttention_0/out/bias     | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| cross_attention_block/MultiHeadDotProductAttention_0/out/kernel   | (12, 64, 768)    | float32 | 589,824   | -4.59e-05 | 0.0361   |
+| cross_attention_block/MultiHeadDotProductAttention_0/query/bias   | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| cross_attention_block/MultiHeadDotProductAttention_0/query/kernel | (768, 12, 64)    | float32 | 589,824   | 4.75e-05  | 0.0361   |
+| cross_attention_block/MultiHeadDotProductAttention_0/value/bias   | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| cross_attention_block/MultiHeadDotProductAttention_0/value/kernel | (768, 12, 64)    | float32 | 589,824   | -6.52e-05 | 0.0361   |
+| encoder_norm/bias                                                 | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoder_norm/scale                                                | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_0/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_0/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_0/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_0/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_0/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | -7.18e-09 | 9.89e-07 |
+| encoderblock_0/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | 1.09e-05  | 0.0228   |
+| encoderblock_0/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | -3.14e-08 | 1.02e-06 |
+| encoderblock_0/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | -1.86e-07 | 0.0228   |
+| encoderblock_0/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_0/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | -2.34e-05 | 0.0361   |
+| encoderblock_0/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_0/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | -7e-07    | 0.036    |
+| encoderblock_0/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_0/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | 1.68e-06  | 0.0361   |
+| encoderblock_0/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_0/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | 8.33e-05  | 0.0361   |
+| encoderblock_1/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_1/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_1/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_1/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_1/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | 7.06e-09  | 9.96e-07 |
+| encoderblock_1/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | -3.01e-05 | 0.0228   |
+| encoderblock_1/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | 2.76e-08  | 9.87e-07 |
+| encoderblock_1/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | 1.85e-05  | 0.0228   |
+| encoderblock_1/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_1/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | -4.71e-05 | 0.0361   |
+| encoderblock_1/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_1/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | -1.63e-05 | 0.0361   |
+| encoderblock_1/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_1/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | -2.69e-05 | 0.0361   |
+| encoderblock_1/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_1/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | 0.000104  | 0.0361   |
+| encoderblock_10/LayerNorm_0/bias                                  | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_10/LayerNorm_0/scale                                 | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_10/LayerNorm_1/bias                                  | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_10/LayerNorm_1/scale                                 | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_10/MlpBlock_0/Dense_0/bias                           | (3072,)          | float32 | 3,072     | 3.52e-08  | 9.97e-07 |
+| encoderblock_10/MlpBlock_0/Dense_0/kernel                         | (768, 3072)      | float32 | 2,359,296 | -1.81e-05 | 0.0228   |
+| encoderblock_10/MlpBlock_0/Dense_1/bias                           | (768,)           | float32 | 768       | 2.46e-08  | 9.89e-07 |
+| encoderblock_10/MlpBlock_0/Dense_1/kernel                         | (3072, 768)      | float32 | 2,359,296 | 8.75e-06  | 0.0228   |
+| encoderblock_10/MultiHeadDotProductAttention_0/key/bias           | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_10/MultiHeadDotProductAttention_0/key/kernel         | (768, 12, 64)    | float32 | 589,824   | -2.11e-05 | 0.0361   |
+| encoderblock_10/MultiHeadDotProductAttention_0/out/bias           | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_10/MultiHeadDotProductAttention_0/out/kernel         | (12, 64, 768)    | float32 | 589,824   | -3.09e-05 | 0.0361   |
+| encoderblock_10/MultiHeadDotProductAttention_0/query/bias         | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_10/MultiHeadDotProductAttention_0/query/kernel       | (768, 12, 64)    | float32 | 589,824   | 4.11e-06  | 0.0361   |
+| encoderblock_10/MultiHeadDotProductAttention_0/value/bias         | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_10/MultiHeadDotProductAttention_0/value/kernel       | (768, 12, 64)    | float32 | 589,824   | 2e-05     | 0.0361   |
+| encoderblock_11/LayerNorm_0/bias                                  | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_11/LayerNorm_0/scale                                 | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_11/LayerNorm_1/bias                                  | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_11/LayerNorm_1/scale                                 | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_11/MlpBlock_0/Dense_0/bias                           | (3072,)          | float32 | 3,072     | -1.6e-08  | 9.95e-07 |
+| encoderblock_11/MlpBlock_0/Dense_0/kernel                         | (768, 3072)      | float32 | 2,359,296 | 1.36e-05  | 0.0228   |
+I0220 08:29:12.369149 140599657996928 parameter_overview.py:353] 
+| encoderblock_11/MlpBlock_0/Dense_1/bias                           | (768,)           | float32 | 768       | -2.48e-08 | 1.05e-06 |
+| encoderblock_11/MlpBlock_0/Dense_1/kernel                         | (3072, 768)      | float32 | 2,359,296 | 3.84e-06  | 0.0228   |
+| encoderblock_11/MultiHeadDotProductAttention_0/key/bias           | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_11/MultiHeadDotProductAttention_0/key/kernel         | (768, 12, 64)    | float32 | 589,824   | -3.11e-05 | 0.0361   |
+| encoderblock_11/MultiHeadDotProductAttention_0/out/bias           | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_11/MultiHeadDotProductAttention_0/out/kernel         | (12, 64, 768)    | float32 | 589,824   | -6.29e-05 | 0.0361   |
+| encoderblock_11/MultiHeadDotProductAttention_0/query/bias         | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_11/MultiHeadDotProductAttention_0/query/kernel       | (768, 12, 64)    | float32 | 589,824   | -3.4e-05  | 0.0361   |
+| encoderblock_11/MultiHeadDotProductAttention_0/value/bias         | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_11/MultiHeadDotProductAttention_0/value/kernel       | (768, 12, 64)    | float32 | 589,824   | -1.22e-05 | 0.0361   |
+| encoderblock_2/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_2/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_2/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_2/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_2/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | 1.06e-08  | 9.76e-07 |
+| encoderblock_2/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | 7.09e-06  | 0.0228   |
+| encoderblock_2/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | -7.68e-09 | 9.98e-07 |
+| encoderblock_2/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | 2.39e-05  | 0.0228   |
+| encoderblock_2/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_2/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | 1.37e-06  | 0.0361   |
+| encoderblock_2/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_2/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | -3.09e-05 | 0.0361   |
+| encoderblock_2/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_2/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | 3.99e-05  | 0.0361   |
+| encoderblock_2/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_2/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | -4.53e-05 | 0.0361   |
+| encoderblock_3/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_3/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_3/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_3/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_3/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | 3.32e-08  | 1.02e-06 |
+| encoderblock_3/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | -5.53e-07 | 0.0228   |
+| encoderblock_3/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | 2.61e-08  | 9.97e-07 |
+| encoderblock_3/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | 1.44e-05  | 0.0228   |
+| encoderblock_3/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_3/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | 1.13e-06  | 0.0361   |
+| encoderblock_3/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_3/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | 1.68e-06  | 0.0361   |
+| encoderblock_3/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_3/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | -2.81e-05 | 0.0361   |
+| encoderblock_3/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_3/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | -6.45e-05 | 0.0361   |
+| encoderblock_4/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_4/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_4/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_4/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_4/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | -7.19e-09 | 1.02e-06 |
+| encoderblock_4/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | 1.46e-05  | 0.0228   |
+| encoderblock_4/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | 5.2e-08   | 9.86e-07 |
+| encoderblock_4/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | 1.08e-06  | 0.0228   |
+| encoderblock_4/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_4/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | 3.7e-05   | 0.0361   |
+| encoderblock_4/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_4/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | -6.08e-05 | 0.0361   |
+| encoderblock_4/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_4/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | 2.73e-05  | 0.0361   |
+| encoderblock_4/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_4/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | -4.1e-05  | 0.0361   |
+| encoderblock_5/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_5/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_5/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_5/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_5/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | 1.69e-08  | 9.98e-07 |
+| encoderblock_5/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | 1.38e-05  | 0.0228   |
+| encoderblock_5/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | -5.58e-08 | 9.93e-07 |
+| encoderblock_5/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | -9.4e-06  | 0.0228   |
+| encoderblock_5/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_5/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | 1.77e-05  | 0.0361   |
+| encoderblock_5/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_5/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | -5.45e-05 | 0.0361   |
+| encoderblock_5/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_5/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | 2.83e-05  | 0.0361   |
+| encoderblock_5/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_5/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | -1.03e-05 | 0.0361   |
+| encoderblock_6/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_6/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_6/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_6/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_6/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | 5.11e-09  | 1.01e-06 |
+| encoderblock_6/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | -2.28e-05 | 0.0228   |
+I0220 08:29:12.369207 140599657996928 parameter_overview.py:353] 
+| encoderblock_6/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | 1.69e-08  | 9.79e-07 |
+| encoderblock_6/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | 2.28e-05  | 0.0228   |
+| encoderblock_6/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_6/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | -2.87e-05 | 0.0361   |
+| encoderblock_6/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_6/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | 0.000122  | 0.0361   |
+| encoderblock_6/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_6/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | -8.52e-05 | 0.036    |
+| encoderblock_6/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_6/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | -7.41e-06 | 0.0361   |
+| encoderblock_7/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_7/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_7/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_7/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_7/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | 2.3e-09   | 1.01e-06 |
+| encoderblock_7/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | -6.53e-06 | 0.0228   |
+| encoderblock_7/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | 5.6e-08   | 9.9e-07  |
+| encoderblock_7/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | -6.33e-06 | 0.0228   |
+| encoderblock_7/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_7/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | 4.08e-06  | 0.0361   |
+| encoderblock_7/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_7/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | 4.13e-05  | 0.0361   |
+| encoderblock_7/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_7/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | -4.11e-06 | 0.0361   |
+| encoderblock_7/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_7/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | 2.92e-05  | 0.0361   |
+| encoderblock_8/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_8/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_8/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_8/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_8/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | -2.12e-08 | 1e-06    |
+| encoderblock_8/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | 1.23e-05  | 0.0228   |
+| encoderblock_8/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | 1.02e-08  | 1.01e-06 |
+| encoderblock_8/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | 2.2e-05   | 0.0228   |
+| encoderblock_8/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_8/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | 2.67e-05  | 0.0361   |
+| encoderblock_8/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_8/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | -4.89e-05 | 0.0361   |
+| encoderblock_8/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_8/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | -6.98e-05 | 0.0361   |
+| encoderblock_8/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_8/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | -5.51e-05 | 0.0361   |
+| encoderblock_9/LayerNorm_0/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_9/LayerNorm_0/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_9/LayerNorm_1/bias                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_9/LayerNorm_1/scale                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| encoderblock_9/MlpBlock_0/Dense_0/bias                            | (3072,)          | float32 | 3,072     | 8.51e-09  | 9.95e-07 |
+| encoderblock_9/MlpBlock_0/Dense_0/kernel                          | (768, 3072)      | float32 | 2,359,296 | -2.05e-05 | 0.0228   |
+| encoderblock_9/MlpBlock_0/Dense_1/bias                            | (768,)           | float32 | 768       | -7.59e-09 | 1.01e-06 |
+| encoderblock_9/MlpBlock_0/Dense_1/kernel                          | (3072, 768)      | float32 | 2,359,296 | 1.53e-05  | 0.0228   |
+| encoderblock_9/MultiHeadDotProductAttention_0/key/bias            | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_9/MultiHeadDotProductAttention_0/key/kernel          | (768, 12, 64)    | float32 | 589,824   | 0.000127  | 0.0361   |
+| encoderblock_9/MultiHeadDotProductAttention_0/out/bias            | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_9/MultiHeadDotProductAttention_0/out/kernel          | (12, 64, 768)    | float32 | 589,824   | -4.2e-05  | 0.0361   |
+| encoderblock_9/MultiHeadDotProductAttention_0/query/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_9/MultiHeadDotProductAttention_0/query/kernel        | (768, 12, 64)    | float32 | 589,824   | -2.28e-05 | 0.0361   |
+| encoderblock_9/MultiHeadDotProductAttention_0/value/bias          | (12, 64)         | float32 | 768       | 0.0       | 0.0      |
+| encoderblock_9/MultiHeadDotProductAttention_0/value/kernel        | (768, 12, 64)    | float32 | 589,824   | -2.86e-05 | 0.0361   |
+| final_norm/bias                                                   | (768,)           | float32 | 768       | 0.0       | 0.0      |
+| final_norm/scale                                                  | (768,)           | float32 | 768       | 1.0       | 0.0      |
+| position_predictor/bias                                           | (196,)           | float32 | 196       | 0.0       | 0.0      |
+| position_predictor/kernel                                         | (768, 196)       | float32 | 150,528   | 0.00014   | 0.0362   |
+| projection_head_for_clustering_prediction/Dense_0/bias            | (2048,)          | float32 | 2,048     | 0.0       | 0.0      |
+| projection_head_for_clustering_prediction/Dense_0/kernel          | (768, 2048)      | float32 | 1,572,864 | -3.74e-05 | 0.0361   |
+| projection_head_for_clustering_prediction/Dense_1/bias            | (2048,)          | float32 | 2,048     | 0.0       | 0.0      |
+| projection_head_for_clustering_prediction/Dense_1/kernel          | (2048, 2048)     | float32 | 4,194,304 | 1.8e-05   | 0.0221   |
+| projection_head_for_clustering_prediction/Dense_2/bias            | (256,)           | float32 | 256       | 0.0       | 0.0      |
+| projection_head_for_clustering_prediction/Dense_2/kernel          | (2048, 256)      | float32 | 524,288   | 3.7e-05   | 0.0221   |
+| projection_head_for_clustering_prediction/prototypes/kernel       | (256, 4096)      | float32 | 1,048,576 | -0.000126 | 0.0625   |
++-------------------------------------------------------------------+------------------+---------+-----------+-----------+----------+
+Total: 100,383,172 -- 401,532,688 bytes
+I0220 08:29:12.369737 140599657996928 debug_utils.py:85] Total params: 100383172
+I0220 08:29:20.263309 140599657996928 debug_utils.py:143] GFLOPs 0.448 for input spec: [((-1, 224, 224, 3), <class 'jax.numpy.float32'>)]
+I0220 08:29:20.797121 140599657996928 checkpoints.py:1098] Found no checkpoint files in loca_base with prefix checkpoint_
+I0220 08:29:21.419375 140578457097984 logging_writer.py:48] [1] gflops=0.447795, num_trainable_params=100383172
+I0220 08:29:21.419961 140599657996928 trainer.py:312] Starting training loop at step 1.
+/home/admin/anaconda3/envs/flax/lib/python3.10/site-packages/jax/_src/interpreters/mlir.py:1153: UserWarning: Some donated buffers were not usable: ShapedArray(float32[1,16,224,224,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,14,14,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,96,96,3]), ShapedArray(float32[1,16,5]), ShapedArray(int32[1,16,6,6,1]), ShapedArray(float32[1,16,224,224,3]).
+See an explanation at https://jax.readthedocs.io/en/latest/faq.html#buffer-donation.
+  warnings.warn("Some donated buffers were not usable:"
+I0220 08:30:41.155926 140599657996928 local.py:41] Setting work unit notes: Steps:0/312500 [0.0%]
+I0220 08:30:41.293589 140578457097984 logging_writer.py:48] [1] train_accuracy=0.00682594, train_feature_loss=0.226789, train_loss=5.76947, train_total_loss=5.99626
+I0220 08:30:41.295492 140578457097984 logging_writer.py:48] [1] 
+I0220 08:30:47.894392 140599657996928 local.py:50] Created artifact [10] Profile of type ArtifactType.URL and value None.
+I0220 08:31:41.196741 140599657996928 local.py:41] Setting work unit notes: 7.5 steps/s, 0.1% (452/312500), ETA: 11h32m
+I0220 08:31:41.197220 140578457097984 logging_writer.py:48] [452] steps_per_sec=7.51155
+I0220 08:31:41.199251 140578457097984 logging_writer.py:48] [452] uptime=139.779
+I0220 08:31:47.620573 140599657996928 local.py:41] Setting work unit notes: Steps:0/312500 [0.0%]
+I0220 08:31:48.617887 140578457097984 logging_writer.py:48] [501] train_accuracy=0.00510154, train_feature_loss=0.19582, train_loss=5.78701, train_total_loss=5.98281
+I0220 08:31:48.618584 140578457097984 logging_writer.py:48] [501] 
+I0220 08:32:41.299731 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 0.3% (897/312500), ETA: 11h41m
+I0220 08:32:41.300233 140578465490688 logging_writer.py:48] [897] steps_per_sec=7.40396
+I0220 08:32:41.302149 140578465490688 logging_writer.py:48] [897] uptime=199.882
+I0220 08:32:55.286999 140599657996928 local.py:41] Setting work unit notes: Steps:1001/312500 [0.3%]
+Walltime:3m34s (1s Not-train)
+ETA:11h42m
+Total train time:11h44m
+I0220 08:32:55.303044 140578465490688 logging_writer.py:48] [1001] core_hours=0.0185183, core_hours_NVIDIA L40-48Q=0.0185183, epoch=0.32032, examples_seen=16016, img/sec=120.001, img/sec/core=120.001, uptime=214.491
+I0220 08:32:56.329966 140578465490688 logging_writer.py:48] [1001] train_accuracy=0.00509696, train_feature_loss=0.188746, train_loss=5.76345, train_total_loss=5.95228
+I0220 08:32:56.330645 140578465490688 logging_writer.py:48] [1001] 
+I0220 08:33:41.432455 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 0.4% (1342/312500), ETA: 11h40m
+I0220 08:33:41.432945 140578457097984 logging_writer.py:48] [1342] steps_per_sec=7.4003
+I0220 08:33:41.435620 140578457097984 logging_writer.py:48] [1342] uptime=260.015
+I0220 08:34:02.577017 140599657996928 local.py:41] Setting work unit notes: Steps:1501/312500 [0.5%]
+Walltime:4m42s (2s Not-train)
+ETA:11h39m
+Total train time:11h42m
+I0220 08:34:02.580119 140578457097984 logging_writer.py:48] [1501] core_hours=0.0369195, core_hours_NVIDIA L40-48Q=0.0369195, epoch=0.48032, examples_seen=24016, img/sec=120.766, img/sec/core=120.766, uptime=281.781
+I0220 08:34:03.566421 140578457097984 logging_writer.py:48] [1501] train_accuracy=0.00517881, train_feature_loss=0.176871, train_loss=5.72348, train_total_loss=5.90037
+I0220 08:34:03.567742 140578457097984 logging_writer.py:48] [1501] 
+I0220 08:34:41.471395 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 0.6% (1786/312500), ETA: 11h40m
+I0220 08:34:41.471871 140578465490688 logging_writer.py:48] [1786] steps_per_sec=7.3952
+I0220 08:34:41.473829 140578465490688 logging_writer.py:48] [1786] uptime=320.054
+I0220 08:35:10.266664 140599657996928 local.py:41] Setting work unit notes: Steps:2001/312500 [0.6%]
+Walltime:5m49s (3s Not-train)
+ETA:11h39m
+Total train time:11h43m
+I0220 08:35:10.269980 140578465490688 logging_writer.py:48] [2001] core_hours=0.0554463, core_hours_NVIDIA L40-48Q=0.0554463, epoch=0.64032, examples_seen=32016, img/sec=119.946, img/sec/core=119.946, uptime=349.47
+I0220 08:35:11.366009 140578465490688 logging_writer.py:48] [2001] train_accuracy=0.00510674, train_feature_loss=0.1619, train_loss=5.67105, train_total_loss=5.833
+I0220 08:35:11.366440 140578465490688 logging_writer.py:48] [2001] 
+I0220 08:35:41.510299 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 0.7% (2228/312500), ETA: 11h42m
+I0220 08:35:41.510776 140578457097984 logging_writer.py:48] [2228] steps_per_sec=7.36189
+I0220 08:35:41.512849 140578457097984 logging_writer.py:48] [2228] uptime=380.093
+I0220 08:36:18.056753 140599657996928 local.py:41] Setting work unit notes: Steps:2501/312500 [0.8%]
+Walltime:6m57s (4s Not-train)
+ETA:11h38m
+Total train time:11h44m
+I0220 08:36:18.059898 140578457097984 logging_writer.py:48] [2501] core_hours=0.0739707, core_hours_NVIDIA L40-48Q=0.0739707, epoch=0.80032, examples_seen=40016, img/sec=119.962, img/sec/core=119.962, uptime=417.261
+I0220 08:36:19.174595 140578457097984 logging_writer.py:48] [2501] train_accuracy=0.00531701, train_feature_loss=0.140953, train_loss=5.61631, train_total_loss=5.75739
+I0220 08:36:19.175192 140578457097984 logging_writer.py:48] [2501] 
+I0220 08:36:41.531313 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 0.9% (2670/312500), ETA: 11h41m
+I0220 08:36:41.531786 140578465490688 logging_writer.py:48] [2670] steps_per_sec=7.36409
+I0220 08:36:41.533708 140578465490688 logging_writer.py:48] [2670] uptime=440.114
+I0220 08:37:25.759304 140599657996928 local.py:41] Setting work unit notes: Steps:3001/312500 [1.0%]
+Walltime:8m5s (5s Not-train)
+ETA:11h37m
+Total train time:11h44m
+I0220 08:37:25.766981 140578465490688 logging_writer.py:48] [3001] core_hours=0.0924656, core_hours_NVIDIA L40-48Q=0.0924656, epoch=0.96032, examples_seen=48016, img/sec=120.153, img/sec/core=120.153, uptime=484.963
+I0220 08:37:26.785771 140578465490688 logging_writer.py:48] [3001] train_accuracy=0.00566647, train_feature_loss=0.122349, train_loss=5.56322, train_total_loss=5.68572
+I0220 08:37:26.786319 140578465490688 logging_writer.py:48] [3001] 
+I0220 08:37:41.664622 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 1.0% (3114/312500), ETA: 11h38m
+I0220 08:37:41.665091 140578457097984 logging_writer.py:48] [3114] steps_per_sec=7.3836
+I0220 08:37:41.667162 140578457097984 logging_writer.py:48] [3114] uptime=500.247
+I0220 08:38:33.391635 140599657996928 local.py:41] Setting work unit notes: Steps:3501/312500 [1.1%]
+Walltime:9m13s (6s Not-train)
+ETA:11h36m
+Total train time:11h44m
+I0220 08:38:33.399841 140578457097984 logging_writer.py:48] [3501] core_hours=0.110966, core_hours_NVIDIA L40-48Q=0.110966, epoch=1.12032, examples_seen=56016, img/sec=120.115, img/sec/core=120.115, uptime=552.595
+I0220 08:38:34.387702 140578457097984 logging_writer.py:48] [3501] train_accuracy=0.00589414, train_feature_loss=0.100739, train_loss=5.51447, train_total_loss=5.61544
+I0220 08:38:34.388351 140578457097984 logging_writer.py:48] [3501] 
+I0220 08:38:41.792599 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 1.1% (3558/312500), ETA: 11h37m
+I0220 08:38:41.793067 140578465490688 logging_writer.py:48] [3558] steps_per_sec=7.38425
+I0220 08:38:41.795026 140578465490688 logging_writer.py:48] [3558] uptime=560.375
+I0220 08:39:41.022652 140599657996928 local.py:41] Setting work unit notes: Steps:4001/312500 [1.3%]
+Walltime:10m20s (7s Not-train)
+ETA:11h35m
+Total train time:11h44m
+I0220 08:39:41.025820 140578465490688 logging_writer.py:48] [4001] core_hours=0.129475, core_hours_NVIDIA L40-48Q=0.129475, epoch=1.28032, examples_seen=64016, img/sec=120.063, img/sec/core=120.063, uptime=620.226
+I0220 08:39:42.071391 140578465490688 logging_writer.py:48] [4001] train_accuracy=0.00620736, train_feature_loss=0.082481, train_loss=5.47218, train_total_loss=5.55499
+I0220 08:39:42.071996 140578465490688 logging_writer.py:48] [4001] 
+I0220 08:39:42.131577 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 1.3% (4002/312500), ETA: 11h38m
+I0220 08:39:42.132023 140578457097984 logging_writer.py:48] [4002] steps_per_sec=7.35843
+I0220 08:39:42.133943 140578457097984 logging_writer.py:48] [4002] uptime=620.714
+I0220 08:40:42.141132 140599657996928 local.py:41] Setting work unit notes: 7.6 steps/s, 1.4% (4456/312500), ETA: 11h18m
+I0220 08:40:42.144140 140578457097984 logging_writer.py:48] [4456] steps_per_sec=7.56546
+I0220 08:40:42.149545 140578457097984 logging_writer.py:48] [4456] uptime=680.723
+I0220 08:40:48.098542 140599657996928 local.py:41] Setting work unit notes: Steps:4501/312500 [1.4%]
+Walltime:11m27s (8s Not-train)
+ETA:11h33m
+Total train time:11h43m
+I0220 08:40:48.101722 140578457097984 logging_writer.py:48] [4501] core_hours=0.147815, core_hours_NVIDIA L40-48Q=0.147815, epoch=1.44032, examples_seen=72016, img/sec=121.167, img/sec/core=121.167, uptime=687.302
+I0220 08:40:49.142594 140578457097984 logging_writer.py:48] [4501] train_accuracy=0.00651954, train_feature_loss=0.0711196, train_loss=5.43398, train_total_loss=5.50554
+I0220 08:40:49.142755 140578457097984 logging_writer.py:48] [4501] 
+I0220 08:41:42.239189 140599657996928 local.py:41] Setting work unit notes: 7.4 steps/s, 1.6% (4903/312500), ETA: 11h29m
+I0220 08:41:42.240132 140578465490688 logging_writer.py:48] [4903] steps_per_sec=7.43784
+I0220 08:41:42.242098 140578465490688 logging_writer.py:48] [4903] uptime=740.822
+I0220 08:41:55.248586 140599657996928 local.py:41] Setting work unit notes: Steps:5001/312500 [1.6%]
+Walltime:12m34s (9s Not-train)
+ETA:11h32m
+Total train time:11h43m
+I0220 08:41:55.251705 140578465490688 logging_writer.py:48] [5001] core_hours=0.166178, core_hours_NVIDIA L40-48Q=0.166178, epoch=1.60032, examples_seen=80016, img/sec=121.021, img/sec/core=121.021, uptime=754.452
+I0220 08:41:56.235822 140578465490688 logging_writer.py:48] [5001] train_accuracy=0.00670511, train_feature_loss=0.05685, train_loss=5.3991, train_total_loss=5.45641
+I0220 08:41:56.236452 140578465490688 logging_writer.py:48] [5001] 
+I0220 08:41:57.951827 140599657996928 checkpoints.py:571] Saving checkpoint at step: 5001

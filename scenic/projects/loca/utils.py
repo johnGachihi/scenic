@@ -78,15 +78,19 @@ def save_checkpoint(workdir: str,
       at the current or a later step already exits (default: False).
     keep_every_n_steps: Keep every checkpoints every n steps.
   """
+  # flax.config.update('flax_use_orbax_checkpointing', True)
   if jax.process_index() == 0:
     checkpoint_state = jax.device_get(train_state)
+    # async_manager = checkpoints.AsyncManager()
     checkpoints.save_checkpoint(
         workdir,
         checkpoint_state,
         int(checkpoint_state.global_step),
         overwrite=overwrite,
         keep=max_to_keep,
-        keep_every_n_steps=keep_every_n_steps)
+        keep_every_n_steps=keep_every_n_steps,
+        # async_manager=async_manager
+    )
 
 
 def restore_checkpoint(checkpoint_path: str,
