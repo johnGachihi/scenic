@@ -4,7 +4,7 @@ from collections import OrderedDict
 import h5py
 from pathlib import Path
 
-from .mmearth_modalities import MODALITIES_FULL, NO_DATA_VAL
+from .mmearth_modalities import MODALITIES, MODALITIES_FULL, NO_DATA_VAL
 
 import tensorflow_datasets as tfds
 import numpy as np
@@ -13,9 +13,9 @@ import numpy as np
 class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
     VERSION = tfds.core.Version('0.0.1')
 
-    def __init__(self, modalities: dict, **kwargs):
-        super().__init__(**kwargs)
-        self.modalities = modalities
+    # def __init__(self, modalities: dict, **kwargs):
+    #     super().__init__(**kwargs)
+    #     self.modalities = modalities
 
     def _info(self):
         return tfds.core.DatasetInfo(
@@ -59,12 +59,12 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
             name = data_full['metadata'][idx][0].decode("utf-8")
             l2a = tile_info[name]["S2_type"] == "l2a"
 
-            for modality in self.modalities.keys():
+            for modality in MODALITIES.keys():
                 # Get band indices
-                if self.modalities[modality] == "all":
+                if MODALITIES[modality] == "all":
                     modality_idx = [i for i in range(len(MODALITIES_FULL[modality]))]
                 else:
-                    modality_idx = [MODALITIES_FULL[modality].index(m) for m in self.modalities[modality]]
+                    modality_idx = [MODALITIES_FULL[modality].index(m) for m in MODALITIES[modality]]
 
                 # Get data
                 data = data_full[modality][idx, modality_idx, ...]

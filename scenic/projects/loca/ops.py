@@ -157,6 +157,16 @@ class ThreeInKeysThreeOutKeys(object):
     return get_ikok_pp_fn
 
 
+@registry.Registry.register("preprocess_ops.permute_channels_last", "function")
+def permute_channels_last(inkey):
+  """Permute the channels of an image tensor to the last dimension."""
+
+  def _permute_channels_last(data):
+    data[inkey] = tf.transpose(data[inkey], [1, 2, 0])
+    return data
+
+  return _permute_channels_last
+
 @registry.Registry.register("preprocess_ops.init_patch_matching_tracker",
                             "function")
 def init_patch_matching_tracker(size, outkey="mask"):
