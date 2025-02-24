@@ -38,8 +38,8 @@ def get_config():
   n_queries = 10
   config.dataset_configs.number_of_focal_queries = n_queries - 1
   config.dataset_configs.pp_train = (
-      'decode' +
-      '|copy("image", "reference")' +
+      # 'decode' +
+      'copy("sentinel2", "reference")' +
       '|init_patch_matching_tracker(14, "target_mask")' +
       '|init_box_tracker("target_box")' +
       f'|cropflip_generatemask({reference_resolution}, 32, flip=False, inkey=("reference", "target_mask", "target_box"), outkey=("reference", "target_mask", "target_box"))' +
@@ -60,8 +60,10 @@ def get_config():
       ''.join([f'|standardize({MEAN_RGB}, {STDDEV_RGB}, data_key="query{i}")' for i in range(n_queries)]) +
       '|keep("reference"' + ''.join([f', "query{i}", "query{i}_box", "query{i}_mask"' for i in range(n_queries)]) + ')')
   # For IMAGENET-1K
-  config.dataset_configs.dataset = 'imagenet'
-  config.dataset_configs.train_split = 'validation'
+  # config.dataset_configs.dataset = 'imagenet'
+  # config.dataset_configs.train_split = 'validation'
+  config.dataset_configs.dataset = 'mm_earth_builder'
+  config.dataset_configs.train_split = 'train'
 
   # Model.
   version, patch = VARIANT.split('/')
