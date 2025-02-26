@@ -17,7 +17,7 @@
 
 import ml_collections
 
-VARIANT = 'Ti/16'
+VARIANT = 'S/16'
 _MMEARTH_TRAIN_SIZE = 100_000
 
 """
@@ -81,6 +81,7 @@ def get_config():
       # '|random_blur(0.1, data_key="query0")|random_solarize(0.2, data_key="query0")' +
       # ''.join([f'|standardize({MEAN_RGB}, {STDDEV_RGB}, data_key="query{i}")' for i in range(n_queries)]) +
       '|keep("reference"' + ''.join([f', "query{i}", "query{i}_box", "query{i}_mask"' for i in range(n_queries)]) + ')')
+
   # For MMEARTH
   config.dataset_configs.dataset = 'mm_earth_builder'
   config.dataset_configs.train_split = 'train'
@@ -125,7 +126,7 @@ def get_config():
   # Training.
   config.max_grad_norm = 1
   config.num_training_epochs = 100
-  config.batch_size = 4
+  config.batch_size = 32
   steps_per_epoch = _MMEARTH_TRAIN_SIZE // config.batch_size
   config.rng_seed = 42
   total_steps = config.num_training_epochs * steps_per_epoch
@@ -153,7 +154,7 @@ def get_config():
   config.write_summary = True
   config.xprof = True  # Profile using xprof.
   config.checkpoint = True  # Do checkpointing. 
-  config.checkpoint_steps = 1000
+  config.checkpoint_steps = 10000
   config.log_summary_steps = 500
 
   return config

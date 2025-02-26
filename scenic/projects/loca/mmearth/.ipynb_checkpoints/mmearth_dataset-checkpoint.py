@@ -11,7 +11,7 @@ import numpy as np
 
 
 class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
-    VERSION = tfds.core.Version('0.0.3')
+    VERSION = tfds.core.Version('0.0.1')
 
     # def __init__(self, modalities: dict, **kwargs):
     #     super().__init__(**kwargs)
@@ -21,18 +21,9 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
         return tfds.core.DatasetInfo(
             builder=self,
             features=tfds.features.FeaturesDict({
-                'sentinel2': tfds.features.Tensor(
-                    shape=(12, 64, 64), 
-                    dtype=np.dtype("uint16"),
-                    encoding="zlib"
-                ),
-                'sentinel1': tfds.features.Tensor(
-                    shape=(8, 64, 64), 
-                    dtype=np.dtype("float32"),
-                    encoding="zlib"
-                ),
+                'sentinel2': tfds.features.Tensor(shape=(12, 64, 64), dtype=np.dtype("float32")),
+                'sentinel1': tfds.features.Tensor(shape=(8, 64, 64), dtype=np.dtype("float32")),
                 'id': tfds.features.Text(),
-                'sentinel2_type': tfds.features.Text(),  # l1c or l2a
             }),
         )
 
@@ -46,7 +37,7 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
         # Split indices
         splits_path = data_root / 'data_1M_v001_64_splits.json'
         with open(splits_path, "r") as f:
-            indices = json.load(f)["train"][:100_000]
+            indices = json.load(f)["train"][:10000]
 
         # Tile info
         tile_info_path = data_root / 'data_1M_v001_64_tile_info.json'
@@ -66,7 +57,7 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
         for idx in indices:
             return_dict = OrderedDict()
             name = data_full['metadata'][idx][0].decode("utf-8")
-            sentinel2_type = tile_info[name]["S2_type"]
+            l2a = tile_info[name]["S2_type"] == "l2a"
 
             for modality in MODALITIES.keys():
                 # Get band indices
@@ -79,17 +70,23 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
                 data = data_full[modality][idx, modality_idx, ...]
                 data = np.array(data)
 
+                # inside the band_stats, the name for sentinel2 is sentinel2_l1c or sentinel2_l2a
+                if modality == "sentinel2":
+                    modality_ = "sentinel2_l2a" if l2a else "sentinel2_l1c"
+                else:
+                    modality_ = modality
+
+                means = np.array(norm_stats[modality_]["mean"])[modality_idx]
+                stds = np.array(norm_stats[modality_]["std"])[modality_idx]
+                data = (data - means[:, None, None]) / stds[:, None, None]  # Why the `None`s
+
                 # convert nodata values to 0
                 data = np.where(data == NO_DATA_VAL[modality], 0, data)
 
-                if modality == "sentinel2":
-                    data = data.astype(np.dtype("uint16"))
-                else:
-                    data = data.astype(np.dtype("float32"))
+                data = data.astype(np.dtype("float32"))
 
                 return_dict[modality] = data
 
             return_dict["id"] = name
-            return_dict["sentinel2_type"] = sentinel2_type
 
             yield name, return_dict

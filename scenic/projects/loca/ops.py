@@ -167,6 +167,51 @@ def permute_channels_last(inkey):
 
   return _permute_channels_last
 
+@registry.Registry.register("preprocess_ops.standardize_sentinel2", "function")
+def standardize_sentinel2(l1c_mean, l1c_std, l2a_mean, l2a_std, 
+                        inkey="sentinel2", sentinel2_type_key="sentinel2_type"):
+  """Standardize Sentinel data based on type (L1C or L2A).
+  
+  Args:
+    l1c_mean: List of means for L1C data
+    l1c_std: List of standard deviations for L1C data  
+    l2a_mean: List of means for L2A data
+    l2a_std: List of standard deviations for L2A data
+    inkey: Key for input data tensor
+    sentinel2_type_key: Key for sentinel2 type string
+  """
+
+  def _standardize_sentinel2(data):
+    # Get the sentinel type
+    is_l2a = tf.equal(data[sentinel2_type_key], "l2a")
+
+    # Select appropriate mean and std based on type
+    mean = tf.cond(
+        is_l2a,
+        lambda: tf.constant(l2a_mean, dtype=tf.float32),
+        lambda: tf.constant(l1c_mean, dtype=tf.float32)
+    )
+    std = tf.cond(
+        is_l2a,
+        lambda: tf.constant(l2a_std, dtype=tf.float32),
+        lambda: tf.constant(l1c_std, dtype=tf.float32)
+    )
+
+    # Reshape mean and std to match data dimensions
+    mean = tf.reshape(mean, [1, 1, -1])
+    std = tf.reshape(std, [1, 1, -1])
+
+    # Standardize the data
+    data[inkey] = tf.cast(data[inkey], tf.float32)
+    data[inkey] = (data[inkey] - mean) / std
+
+    return data
+
+  return _standardize_sentinel2
+
+
+
+
 @registry.Registry.register("preprocess_ops.init_patch_matching_tracker",
                             "function")
 def init_patch_matching_tracker(size, outkey="mask"):
