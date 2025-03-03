@@ -270,6 +270,15 @@ def train(
   start_step = train_state.global_step
   if config.checkpoint:
     train_state, start_step = utils.restore_checkpoint(workdir, train_state)
+
+  if start_step == 0 and config.initialization == 'imnet_ckt':
+    logging.info('Initializing model using pretrained LOCA ImageNet1k weights.')
+    params, ema_params = utils.get_imagenet_ckpt_params(
+        config.initialization_ckpt, train_state)
+    train_state = utils.TrainState(
+      global_step=0, opt_state=opt_state, tx=tx, params=params,
+      ema_params=ema_params, rng=rng, metadata={'chrono': chrono.save()})
+
   chrono.load(train_state.metadata['chrono'])
   train_state = train_state.replace(metadata={})
   # Replicate the training state: optimizer, params and rng.

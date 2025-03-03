@@ -19,6 +19,7 @@ from typing import Any, Dict, Tuple, Optional
 import flax
 from flax import jax_utils
 from flax import struct
+from flax.core import freeze
 from flax.training import checkpoints
 import jax
 import jax.numpy as jnp
@@ -177,3 +178,50 @@ def sinkhorn(x, num_itr=3, distributed=True):
     # x sums to 1 for each sample (it is an assignment).
     x /= weight_per_sample
   return x
+
+
+def get_imagenet_ckpt_params(checkpoint_file: str, train_state: TrainState):
+  raw_train_state = checkpoints.restore_checkpoint(checkpoint_file, None)
+  params = train_state['params'].unfreeze()
+  # params['ToTokenSequence_0']['embedding'] = raw_train_state['student_weights']['ToTokenSequence_0']['embedding']
+  params['ToTokenSequence_0']['posembed_input'] = raw_train_state['student_weights']['ToTokenSequence_0']['posembed_input']
+  params['encoderblock_0'] = raw_train_state['student_weights']['encoderblock_0']
+  params['encoderblock_1'] = raw_train_state['student_weights']['encoderblock_1']
+  params['encoderblock_2'] = raw_train_state['student_weights']['encoderblock_2']
+  params['encoderblock_3'] = raw_train_state['student_weights']['encoderblock_3']
+  params['encoderblock_4'] = raw_train_state['student_weights']['encoderblock_4']
+  params['encoderblock_5'] = raw_train_state['student_weights']['encoderblock_5']
+  params['encoderblock_6'] = raw_train_state['student_weights']['encoderblock_6']
+  params['encoderblock_7'] = raw_train_state['student_weights']['encoderblock_7']
+  params['encoderblock_8'] = raw_train_state['student_weights']['encoderblock_8']
+  params['encoderblock_9'] = raw_train_state['student_weights']['encoderblock_9']
+  params['encoderblock_10'] = raw_train_state['student_weights']['encoderblock_10']
+  params['encoderblock_11'] = raw_train_state['student_weights']['encoderblock_11']
+  params['encoder_norm'] = raw_train_state['student_weights']['final_encoder_norm']
+  params['cross_attention_block'] = raw_train_state['student_weights']['localizer_block_0']
+  params['position_predictor'] = raw_train_state['student_weights']['pos_predictor']
+  # params['projection_head_for_clustering_prediction'] = raw_train_state['student_weights']['output_projection']
+  params = freeze(params)
+
+  ema_params = train_state['ema_params'].unfreeze()
+  # ema_params['ToTokenSequence_0']['embedding'] = raw_train_state['teacher_weights']['ToTokenSequence_0']['embedding']
+  ema_params['ToTokenSequence_0']['posembed_input'] = raw_train_state['teacher_weights']['ToTokenSequence_0']['posembed_input']
+  ema_params['encoderblock_0'] = raw_train_state['teacher_weights']['encoderblock_0']
+  ema_params['encoderblock_1'] = raw_train_state['teacher_weights']['encoderblock_1']
+  ema_params['encoderblock_2'] = raw_train_state['teacher_weights']['encoderblock_2']
+  ema_params['encoderblock_3'] = raw_train_state['teacher_weights']['encoderblock_3']
+  ema_params['encoderblock_4'] = raw_train_state['teacher_weights']['encoderblock_4']
+  ema_params['encoderblock_5'] = raw_train_state['teacher_weights']['encoderblock_5']
+  ema_params['encoderblock_6'] = raw_train_state['teacher_weights']['encoderblock_6']
+  ema_params['encoderblock_7'] = raw_train_state['teacher_weights']['encoderblock_7']
+  ema_params['encoderblock_8'] = raw_train_state['teacher_weights']['encoderblock_8']
+  ema_params['encoderblock_9'] = raw_train_state['teacher_weights']['encoderblock_9']
+  ema_params['encoderblock_10'] = raw_train_state['teacher_weights']['encoderblock_10']
+  ema_params['encoderblock_11'] = raw_train_state['teacher_weights']['encoderblock_11']
+  ema_params['encoder_norm'] = raw_train_state['teacher_weights']['final_encoder_norm']
+  ema_params['cross_attention_block'] = raw_train_state['teacher_weights']['localizer_block_0']
+  ema_params['position_predictor'] = raw_train_state['teacher_weights']['pos_predictor']
+  # ema_params['projection_head_for_clustering_prediction'] = raw_train_state['teacher_weights']['output_projection']
+  ema_params = freeze(ema_params)
+
+  return params, ema_params

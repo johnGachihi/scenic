@@ -204,6 +204,7 @@ def standardize_sentinel2(l1c_mean, l1c_std, l2a_mean, l2a_std,
     # Standardize the data
     data[inkey] = tf.cast(data[inkey], tf.float32)
     data[inkey] = (data[inkey] - mean) / std
+    data["is_l2a"] = tf.cast(is_l2a, tf.bool)
 
     return data
 

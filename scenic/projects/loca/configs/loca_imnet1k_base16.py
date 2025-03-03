@@ -17,7 +17,7 @@
 
 import ml_collections
 
-VARIANT = 'Ti/16'
+VARIANT = 'S/16'
 _IMAGENET_TRAIN_SIZE = 1281167
 MEAN_RGB = [0.485, 0.456, 0.406]
 STDDEV_RGB = [0.229, 0.224, 0.225]
@@ -33,7 +33,7 @@ def get_config():
   config.data_dtype_str = 'float32'
   config.dataset_configs = ml_collections.ConfigDict()
   config.dataset_configs.prefetch_to_device = 2
-  config.dataset_configs.shuffle_buffer_size = 250_000
+  config.dataset_configs.shuffle_buffer_size = 25_000
   reference_resolution = 224
   n_queries = 10
   config.dataset_configs.number_of_focal_queries = n_queries - 1
@@ -103,7 +103,7 @@ def get_config():
   # Training.
   config.max_grad_norm = 1
   config.num_training_epochs = 100
-  config.batch_size = 4
+  config.batch_size = 64
   steps_per_epoch = _IMAGENET_TRAIN_SIZE // config.batch_size
   config.rng_seed = 42
   total_steps = config.num_training_epochs * steps_per_epoch

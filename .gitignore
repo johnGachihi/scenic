@@ -1,3 +1,13 @@
 loca_base
 loca_tiny
 loca_test
+loca_small_mmearth64
+loca_tiny_mmearth64
+loca_tiny_imnet
+loca_mmearth_small_imnet_init_no_masking
+loca_mmearth_test
+loca_small_imnet
+loca_small_imnet1k
+loca_imnet1k_pretrained_test
+loca_imnet1k_pretrained_test_2
+loca_imnet1k_pretrained_test_3

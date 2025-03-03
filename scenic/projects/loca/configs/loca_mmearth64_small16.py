@@ -80,7 +80,7 @@ def get_config():
       # ''.join([f'|random_blur(0.5, data_key="query{i}")' for i in range(1, n_queries)]) +
       # '|random_blur(0.1, data_key="query0")|random_solarize(0.2, data_key="query0")' +
       # ''.join([f'|standardize({MEAN_RGB}, {STDDEV_RGB}, data_key="query{i}")' for i in range(n_queries)]) +
-      '|keep("reference"' + ''.join([f', "query{i}", "query{i}_box", "query{i}_mask"' for i in range(n_queries)]) + ')')
+      '|keep("reference"' + ''.join([f', "query{i}", "query{i}_box", "query{i}_mask"' for i in range(n_queries)]) + ', "is_l2a")')
 
   # For MMEARTH
   config.dataset_configs.dataset = 'mm_earth_builder'
@@ -115,18 +115,21 @@ def get_config():
   config.model_dtype_str = 'float32'
   config.model.temperature = 0.1
   config.sharpening = 0.05
+  config.initialization = 'imnet_ckt'
+  config.initialization_ckpt = '/home/admin/john/scenic/scenic/projects/loca/imnet_ckpts/loca_vsmall_imnet1k'
 
   # LOCA specific parameters.
   config.n_ref_positions = int((reference_resolution // patch)**2)
   config.apply_cluster_loss = True
-  config.reference_seqlen = int(0.2 * config.n_ref_positions)  # 20% of 196 is 39
+  # config.reference_seqlen = int(0.2 * config.n_ref_positions)  # 20% of 196 is 39
+  config.reference_seqlen = int(1. * config.n_ref_positions)
   config.reference_seqlen_selection = 'consecutive'  # or 'unstructured' or 'first'
   config.query_max_seqlen = 70
 
   # Training.
   config.max_grad_norm = 1
   config.num_training_epochs = 100
-  config.batch_size = 32
+  config.batch_size = 64
   steps_per_epoch = _MMEARTH_TRAIN_SIZE // config.batch_size
   config.rng_seed = 42
   total_steps = config.num_training_epochs * steps_per_epoch
@@ -137,7 +140,7 @@ def get_config():
   config.lr_configs.factors = 'constant * cosine_decay * linear_warmup'
   config.lr_configs.warmup_steps = steps_per_epoch * 15
   config.lr_configs.steps_per_cycle = total_steps
-  config.lr_configs.base_learning_rate = 0.0001 * config.batch_size / 1024
+  config.lr_configs.base_learning_rate = 0.001 * config.batch_size / 1024
   config.lr_configs.alpha = 0.01
 
   # Weight decay.
@@ -153,9 +156,9 @@ def get_config():
   # Logging.
   config.write_summary = True
   config.xprof = True  # Profile using xprof.
-  config.checkpoint = True  # Do checkpointing. 
+  config.checkpoint = True  # Do checkpointing.
   config.checkpoint_steps = 10000
-  config.log_summary_steps = 500
+  config.log_summary_steps = 50
 
   return config
 
