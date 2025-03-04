@@ -115,6 +115,7 @@ def get_config():
   config.model_dtype_str = 'float32'
   config.model.temperature = 0.1
   config.sharpening = 0.05
+  
   config.initialization = 'imnet_ckt'
   config.initialization_ckpt = '/home/admin/john/scenic/scenic/projects/loca/imnet_ckpts/loca_vsmall_imnet1k'
 
