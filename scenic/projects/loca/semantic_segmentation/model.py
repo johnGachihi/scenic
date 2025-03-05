@@ -49,7 +49,11 @@ class SemanticSegmentationModel(nn.Module):
     # TODO: Parameterize 14
     x = patches_repr.reshape(patches_repr.shape[0], 14, 14, patches_repr.shape[-1])
 
-    x = nn.ConvTranspose(2, kernel_size=(13, 13), strides=(16, 16))(x)
+    # Gradually upsample spatial dimensions while reducing channels
+    x = nn.ConvTranspose(192, kernel_size=(3, 3), strides=(2, 2))(x)  # 28x28, 192 channels
+    x = nn.ConvTranspose(96, kernel_size=(3, 3), strides=(2, 2))(x)   # 56x56, 96 channels  
+    x = nn.ConvTranspose(48, kernel_size=(3, 3), strides=(2, 2))(x)   # 112x112, 48 channels
+    x = nn.ConvTranspose(2, kernel_size=(3, 3), strides=(2, 2))(x)    # 224x224, 2 channels
 
     # Add a final segmentation head
     x = nn.Conv(self.num_classes, kernel_size=(1, 1))(x)
