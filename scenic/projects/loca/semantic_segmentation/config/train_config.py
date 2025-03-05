@@ -15,20 +15,31 @@ def get_config():
     config.dataset_configs.pp_train = (
         'permute_channels_last("s2_img")'
         '|permute_channels_last("label")'
+        '|select_bands([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12], "s2_img",)'
         '|resize(224, data_key="s2_img")'
         '|resize(224, "nearest", data_key="label")'
         '|keep("s2_img", "label")'
     )
-    config.dataset_configs.shuffle_buffer_size = 25000
+    config.dataset_configs.pp_eval = (
+        'permute_channels_last("s2_img")'
+        '|permute_channels_last("label")'
+        '|select_bands([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12], "s2_img",)'
+        '|resize(224, data_key="s2_img")'
+        '|resize(224, "nearest", data_key="label")'
+        '|keep("s2_img", "label")'
+    )
+    config.dataset_configs.shuffle_buffer_size = 5  # TODO: tune
 
     # Sen1Floods11 Dataset
     config.dataset_configs.dataset = 'sen1_floods11'
     config.dataset_configs.train_split = 'train'
+    config.dataset_configs.val_split = 'val'
+    config.dataset_configs.num_classes = 2
 
     # Model
     config.model = ml_collections.ConfigDict()
     ## Semantic Segmentation
-    config.model.num_classes = 2
+    config.model.num_classes = 2  # TODO: Use dataset_configs.num_classes
     ## ViT-LOCA Encoder Model
     version, patch = VARIANT.split('/')
     patch = int(patch)
@@ -58,28 +69,32 @@ def get_config():
 
     # Training
     config.batch_size = 64
-    config.num_training_epochs = 100
+    config.eval_batch_size = 32
+    config.num_training_epochs = 50
     config.rng_seed = 42
     steps_per_epoch = _SEN1_FLOODS11_TRAIN_SIZE // config.batch_size
     total_steps = config.num_training_epochs * steps_per_epoch
 
+    # config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_test'
+
     # Learning rate.
     config.lr_configs = ml_collections.ConfigDict()
     config.lr_configs.learning_rate_schedule = 'compound'
-    config.lr_configs.factors = 'constant * cosine_decay * linear_warmup'
-    config.lr_configs.warmup_steps = steps_per_epoch * 5
+    config.lr_configs.factors = 'cosine_decay'
+    # config.lr_configs.warmup_steps = steps_per_epoch * 5
     config.lr_configs.steps_per_cycle = total_steps
-    config.lr_configs.base_learning_rate = 0.001 * config.batch_size / 1024
+    config.lr_configs.base_learning_rate = 0.00001
     config.lr_configs.alpha = 0.01
 
     # Weight decay.
-    config.weight_decay = 0.1
+    config.weight_decay = 0.0001
     
     # Logging.
     config.write_summary = True
     config.xprof = True  # Profile using xprof.
     # config.checkpoint = True  # Do checkpointing.
     # config.checkpoint_steps = 10000
-    config.log_summary_steps = 50
+    config.log_summary_steps = 100
+    config.log_eval_steps = steps_per_epoch
 
     return config

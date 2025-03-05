@@ -210,7 +210,21 @@ def standardize_sentinel2(l1c_mean, l1c_std, l2a_mean, l2a_std,
 
   return _standardize_sentinel2
 
+@registry.Registry.register("preprocess_ops.select_bands", "function")
+def select_bands(bands, inkey="inputs"):
+  """Select bands from Sentinel2 bands to keep.
+     Expects bands/channel dimension to be last.
 
+  Args:
+    bands: List of bands to keep
+    inkey: Key for input data tensor
+  """
+
+  def _select_bands(data):
+    data[inkey] = tf.gather(data[inkey], bands, axis=-1)
+    return data
+
+  return _select_bands
 
 
 @registry.Registry.register("preprocess_ops.init_patch_matching_tracker",
