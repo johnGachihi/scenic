@@ -31,6 +31,81 @@ from scenic.model_lib.layers import nn_layers
 from scenic.projects.baselines import vit
 
 
+class Sen2ToTokenSequence(nn.Module):
+  """Sentinel 2 Grouped Channel embedding"""
+
+  patches: ml_collections.ConfigDict
+  hidden_size: int
+  channel_embed_size: int = 128  # TODO: Expose as config
+  posembs: Tuple[int, int] = (14, 14)
+  positional_embedding: str = 'learned'
+  channel_groups: Tuple[Tuple[int]] = ((0, 1, 2, 6), (3, 4, 5, 7), (8, 9))
+
+  @nn.compact
+  def __call__(self, x: jnp.ndarray, seqlen: int = -1,
+               seqlen_selection: str = 'unstructured'):
+    fh, fw = self.patches.size
+    G = len(self.channel_groups)
+
+    # Grouped Channel Patch Embedding
+    x_grouped = []
+    for idx, group in enumerate(self.channel_groups):
+      x_group = x[:, :, :, group]
+      x_group = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
+                        name=f'embedding-{idx}')(x_group)  # (B, H, W, channels_in_group) -> (B, Hp, Wp, D)
+      x_grouped.append(x_group)
+
+    x = jnp.stack(x_grouped, axis=3)  # (B, Hp, Wp, G, D)
+
+    # Add spectral and positional embedding
+    # Following SatMAE
+    chanemb = self.param(
+      'channel_embed_input',
+      nn.initializers.normal(stddev=1 / np.sqrt(self.channel_embed_size)),
+      (1, G, self.channel_embed_size), x.dtype)  # (1, G, Dc)
+
+    posembed_size = self.hidden_size - self.channel_embed_size
+    posemb = self.param(
+      'posembed_input',
+      nn.initializers.normal(stddev=1 / np.sqrt(posembed_size)),
+      (1, self.posembs[0], self.posembs[1], posembed_size), x.dtype)  # (1, Hp, Wp, Dp)
+
+    _, h, w, _, _ = x.shape
+
+    if (h, w) != self.posembs:
+      posemb = jax.image.resize(posemb, (1, h, w, posembed_size), 'bilinear')
+
+    # Expand channel embedding to add spatial dims
+    _chanemb = jnp.expand_dims(chanemb, axis=(1, 2))  # (1, 1, 1, G, Dc)
+    _chanemb = jnp.broadcast_to(
+      _chanemb, (1, h, w, G, self.channel_embed_size))  # (1, Hp, Wp, G, Dc)
+    # Expand positional embedding to add group dim
+    _posemb = jnp.expand_dims(posemb, axis=3)  # (1, Hp, Wp, 1, Dp)
+    _posemb = jnp.broadcast_to(
+      _posemb, (1, h, w, G, posembed_size))  # (1, Hp, Wp, G, Dp)
+
+    # Concatenate channel and positional embeddings
+    pos_chan_embed = jnp.concatenate((_chanemb, _posemb), axis=-1)  # (1, Hp, Wp, G, D)
+
+    x = x + pos_chan_embed
+    x = jnp.reshape(x, (-1, h * w, G, self.hidden_size))
+
+    # Possibly dropping some tokens.
+    # Option 1: Channel Group independent masking
+    # x = x.reshape(-1, h * w * G, self.hidden_size)
+    idx_kept_tokens = None
+    n_tokens = x.shape[1]
+    if seqlen > 0:
+      rng = self.make_rng('droptok')
+      idx_kept_tokens = token_indexes_not_to_drop(
+        seqlen, n_tokens, seqlen_selection, rng)
+      if len(idx_kept_tokens) < n_tokens:
+        x = jnp.take(x, idx_kept_tokens, axis=1)
+
+    jax.debug.breakpoint()
+    return x, idx_kept_tokens
+
+
 class ToTokenSequence(nn.Module):
   """Transform a batch of views into a sequence of tokens."""
 
@@ -46,9 +121,9 @@ class ToTokenSequence(nn.Module):
     positional_embedding = positional_embedding or self.positional_embedding
     if positional_embedding == 'learned':
       posemb = self.param(
-          'posembed_input',
-          nn.initializers.normal(stddev=1/np.sqrt(c)),
-          (1, self.posembs[0], self.posembs[1], c), x.dtype)
+        'posembed_input',
+        nn.initializers.normal(stddev=1 / np.sqrt(c)),
+        (1, self.posembs[0], self.posembs[1], c), x.dtype)
       # Optionally resize the positional encodings.
       if (h, w) != self.posembs:
         posemb = jax.image.resize(posemb, (1, h, w, c), 'bilinear')
@@ -64,18 +139,20 @@ class ToTokenSequence(nn.Module):
     # Extracting patches and then embedding is in fact a single convolution.
     fh, fw = self.patches.size
     x = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
-                name='embedding')(x)
+                name='embedding')(x)  # [B, H // fh, W // fw, hidden_size]
 
     # Adding positional encodings.
     x = self.add_positional_encodings(x, positional_embedding)
 
     # Possibly dropping some tokens.
     idx_kept_tokens = None
-    n_tokens = self.posembs[0] * self.posembs[1]
+    # n_tokens = self.posembs[0] * self.posembs[1]
+    n_tokens = x.shape[1]
+    # jax.debug.breakpoint()
     if seqlen > 0:
       rng = self.make_rng('droptok')
       idx_kept_tokens = token_indexes_not_to_drop(
-          seqlen, n_tokens, seqlen_selection, rng)
+        seqlen, n_tokens, seqlen_selection, rng)
       if len(idx_kept_tokens) < n_tokens:
         x = jnp.take(x, idx_kept_tokens, axis=1)
 
@@ -144,45 +221,56 @@ class ViT4LOCA(nn.Module):
                seqlen_selection: str = 'unstructured', debug: bool = False):
     del debug
     # Input image -> sequence of patch tokens.
-    to_token_fn = ToTokenSequence(
-        patches=self.patches,
-        hidden_size=self.hidden_size,
-        posembs=self.posembs)
-    x, idx_kept_tokens = to_token_fn(
-        x, seqlen=seqlen if drop_moment == 'early' else -1,
-        positional_embedding=None if use_pe else 'pe_not_in_use',
-        seqlen_selection=seqlen_selection)
+    x, idx_kept_tokens = Sen2ToTokenSequence(
+      patches=self.patches,
+      hidden_size=self.hidden_size,
+      posembs=self.posembs
+    )(
+      x, seqlen=seqlen if drop_moment == 'early' else -1,
+      seqlen_selection=seqlen_selection
+    )
+
+    # to_token_fn = ToTokenSequence(
+    #   patches=self.patches,
+    #   hidden_size=self.hidden_size,
+    #   posembs=self.posembs)
+    # x, idx_kept_tokens = to_token_fn(
+    #   x, seqlen=seqlen if drop_moment == 'early' else -1,
+    #   positional_embedding=None if use_pe else 'pe_not_in_use',
+    #   seqlen_selection=seqlen_selection)
 
     # ViT Encoder.
     for lyr in range(self.num_layers):
       x = vit.Encoder1DBlock(
-          mlp_dim=self.mlp_dim,
-          num_heads=self.num_heads,
-          dropout_rate=self.dropout_rate,
-          attention_dropout_rate=self.attention_dropout_rate,
-          stochastic_depth=(lyr / max(self.num_layers - 1, 1)) *
-          self.stochastic_depth,
-          name=f'encoderblock_{lyr}',
-          dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
-              x, deterministic=not train)
+        mlp_dim=self.mlp_dim,
+        num_heads=self.num_heads,
+        dropout_rate=self.dropout_rate,
+        attention_dropout_rate=self.attention_dropout_rate,
+        stochastic_depth=(lyr / max(self.num_layers - 1, 1)) *
+                         self.stochastic_depth,
+        name=f'encoderblock_{lyr}',
+        dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
+        x, deterministic=not train)
     x = nn.LayerNorm(name='encoder_norm')(x)
 
     # Optionally apply a clustering prediction loss.
     cluster_pred_outputs = None
     if self.apply_cluster_loss:
       cluster_pred_outputs = ProjectionHead(
-          hidden_dim=self.head_hidden_dim,
-          bottleneck_dim=self.head_bottleneck_dim,
-          output_dim=self.head_output_dim,
-          name='projection_head_for_clustering_prediction')(
-              x, train).reshape((-1, self.head_output_dim))
+        hidden_dim=self.head_hidden_dim,
+        bottleneck_dim=self.head_bottleneck_dim,
+        output_dim=self.head_output_dim,
+        name='projection_head_for_clustering_prediction')(
+        x, train).reshape((-1, self.head_output_dim))
+
+    # jax.debug.breakpoint()
 
     patches_repr = x
     # Drop some tokens (in the reference view).
     if drop_moment == 'late':
       rng = self.make_rng('droptok')
       idx_kept_tokens = token_indexes_not_to_drop(
-          seqlen, self.n_ref_positions, seqlen_selection, rng)
+        seqlen, self.n_ref_positions, seqlen_selection, rng)
       if len(idx_kept_tokens) < self.n_ref_positions:
         patches_repr = jnp.take(patches_repr, idx_kept_tokens, axis=1)
 
@@ -190,13 +278,13 @@ class ViT4LOCA(nn.Module):
     if inputs_kv is None:
       inputs_kv = copy.deepcopy(patches_repr)
     x = CrossAttentionEncoderBlock(
-        mlp_dim=self.mlp_dim,
-        num_heads=self.num_heads,
-        dropout_rate=self.dropout_rate,
-        attention_dropout_rate=self.attention_dropout_rate,
-        name='cross_attention_block',
-        dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
-            x, inputs_kv=inputs_kv, deterministic=not train)
+      mlp_dim=self.mlp_dim,
+      num_heads=self.num_heads,
+      dropout_rate=self.dropout_rate,
+      attention_dropout_rate=self.attention_dropout_rate,
+      name='cross_attention_block',
+      dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
+      x, inputs_kv=inputs_kv, deterministic=not train)
     x = nn.LayerNorm(name='final_norm')(x)
     x = nn.Dense(self.n_ref_positions, name='position_predictor')(x)
     return x, cluster_pred_outputs, patches_repr, idx_kept_tokens
@@ -227,6 +315,7 @@ class ProjectionHead(nn.Module):
 
   @nn.compact
   def __call__(self, x: jnp.ndarray, train: bool) -> jnp.ndarray:
+    # jax.debug.breakpoint()
     for i in range(self.n_layers):
       x = nn.Dense(self.hidden_dim)(x)
       x = nn.gelu(x)
@@ -236,6 +325,7 @@ class ProjectionHead(nn.Module):
     x /= jnp.linalg.norm(x, axis=-1, keepdims=True)
     x = WeightNormDense(self.output_dim, use_bias=False, name='prototypes',
                         kernel_init=norm_kernel_init_fn)(x)
+    # jax.debug.breakpoint()
     return x
 
 
@@ -260,12 +350,12 @@ class CrossAttentionEncoderBlock(vit.Encoder1DBlock):
     x = nn.LayerNorm(dtype=self.dtype)(inputs)
     inputs_kv = nn.LayerNorm(dtype=self.dtype)(inputs_kv)
     x = nn.MultiHeadDotProductAttention(
-        num_heads=self.num_heads,
-        dtype=self.dtype,
-        kernel_init=nn.initializers.xavier_uniform(),
-        broadcast_dropout=False,
-        deterministic=deterministic,
-        dropout_rate=self.attention_dropout_rate)(x, inputs_kv)
+      num_heads=self.num_heads,
+      dtype=self.dtype,
+      kernel_init=nn.initializers.xavier_uniform(),
+      broadcast_dropout=False,
+      deterministic=deterministic,
+      dropout_rate=self.attention_dropout_rate)(x, inputs_kv)
     x = nn.Dropout(rate=self.dropout_rate)(x, deterministic)
     x = nn_layers.StochasticDepth(rate=self.stochastic_depth)(x, deterministic)
     x = x + inputs
@@ -273,13 +363,13 @@ class CrossAttentionEncoderBlock(vit.Encoder1DBlock):
     # MLP block.
     y = nn.LayerNorm(dtype=self.dtype)(x)
     y = attention_layers.MlpBlock(
-        mlp_dim=self.mlp_dim,
-        dtype=self.dtype,
-        dropout_rate=self.dropout_rate,
-        activation_fn=nn.gelu,
-        kernel_init=nn.initializers.xavier_uniform(),
-        bias_init=nn.initializers.normal(stddev=1e-6))(
-            y, deterministic=deterministic)
+      mlp_dim=self.mlp_dim,
+      dtype=self.dtype,
+      dropout_rate=self.dropout_rate,
+      activation_fn=nn.gelu,
+      kernel_init=nn.initializers.xavier_uniform(),
+      bias_init=nn.initializers.normal(stddev=1e-6))(
+      y, deterministic=deterministic)
     y = nn_layers.StochasticDepth(rate=self.stochastic_depth)(y, deterministic)
     return y + x
 
@@ -287,56 +377,56 @@ class CrossAttentionEncoderBlock(vit.Encoder1DBlock):
 class ViTLOCAModel(base_model.BaseModel):
   """Vision Transformer model for LOCA training."""
 
-  def build_flax_model(self)-> nn.Module:
+  def build_flax_model(self) -> nn.Module:
     model_dtype = getattr(jnp, self.config.get('model_dtype_str', 'float32'))
     return ViT4LOCA(
-        mlp_dim=self.config.model.mlp_dim,
-        num_layers=self.config.model.num_layers,
-        num_heads=self.config.model.num_heads,
-        patches=self.config.model.patches,
-        hidden_size=self.config.model.hidden_size,
-        n_ref_positions=self.config.n_ref_positions,
-        apply_cluster_loss=self.config.apply_cluster_loss,
-        head_hidden_dim=self.config.model.get('head_hidden_dim', 2048),
-        head_bottleneck_dim=self.config.model.get('head_bottleneck_dim', 256),
-        head_output_dim=self.config.model.get('head_output_dim', 1024),
-        dropout_rate=self.config.model.get('dropout_rate', 0.0),
-        attention_dropout_rate=self.config.model.get('attention_dropout_rate',
-                                                     0.0),
-        stochastic_depth=self.config.model.get('stochastic_depth', 0.0),
-        posembs=self.config.model.get('posembs', (14, 14)),
-        dtype=model_dtype,
+      mlp_dim=self.config.model.mlp_dim,
+      num_layers=self.config.model.num_layers,
+      num_heads=self.config.model.num_heads,
+      patches=self.config.model.patches,
+      hidden_size=self.config.model.hidden_size,
+      n_ref_positions=self.config.n_ref_positions,
+      apply_cluster_loss=self.config.apply_cluster_loss,
+      head_hidden_dim=self.config.model.get('head_hidden_dim', 2048),
+      head_bottleneck_dim=self.config.model.get('head_bottleneck_dim', 256),
+      head_output_dim=self.config.model.get('head_output_dim', 1024),
+      dropout_rate=self.config.model.get('dropout_rate', 0.0),
+      attention_dropout_rate=self.config.model.get('attention_dropout_rate',
+                                                   0.0),
+      stochastic_depth=self.config.model.get('stochastic_depth', 0.0),
+      posembs=self.config.model.get('posembs', (14, 14)),
+      dtype=model_dtype,
     )
 
   def default_flax_model_config(self) -> ml_collections.ConfigDict:
     return ml_collections.ConfigDict({
-        'model':
-            dict(
-                num_heads=2,
-                num_layers=1,
-                mlp_dim=32,
-                dropout_rate=0.,
-                attention_dropout_rate=0.,
-                hidden_size=16,
-                head_hidden_dim=32,
-                head_bottleneck_dim=16,
-                head_output_dim=64,
-                patches={'size': (4, 4)},
-                data_dtype_str='float32')
+      'model':
+        dict(
+          num_heads=2,
+          num_layers=1,
+          mlp_dim=32,
+          dropout_rate=0.,
+          attention_dropout_rate=0.,
+          hidden_size=16,
+          head_hidden_dim=32,
+          head_bottleneck_dim=16,
+          head_output_dim=64,
+          patches={'size': (4, 4)},
+          data_dtype_str='float32')
     })
 
   def get_metrics_fn(self, split: Optional[str] = None):
     del split
     return functools.partial(
-        classification_model.classification_metrics_function,
-        target_is_onehot=True,
-        metrics=dict(
-            {'accuracy': (
-                model_utils.weighted_correctly_classified,
-                model_utils.num_examples),
-             'loss': (
-                 model_utils.weighted_unnormalized_softmax_cross_entropy,
-                 model_utils.num_examples)}))
+      classification_model.classification_metrics_function,
+      target_is_onehot=True,
+      metrics=dict(
+        {'accuracy': (
+          model_utils.weighted_correctly_classified,
+          model_utils.num_examples),
+          'loss': (
+            model_utils.weighted_unnormalized_softmax_cross_entropy,
+            model_utils.num_examples)}))
 
   def loss_function(self,
                     predictions: jnp.ndarray,
