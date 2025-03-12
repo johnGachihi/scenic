@@ -51,7 +51,7 @@ class SemanticSegmentationModel(nn.Module):
 
     # Gradually upsample spatial dimensions while reducing channels
     x = nn.ConvTranspose(192, kernel_size=(3, 3), strides=(2, 2))(x)  # 28x28, 192 channels
-    x = nn.ConvTranspose(96, kernel_size=(3, 3), strides=(2, 2))(x)   # 56x56, 96 channels  
+    x = nn.ConvTranspose(96, kernel_size=(3, 3), strides=(2, 2))(x)   # 56x56, 96 channels
     x = nn.ConvTranspose(48, kernel_size=(3, 3), strides=(2, 2))(x)   # 112x112, 48 channels
     x = nn.ConvTranspose(2, kernel_size=(3, 3), strides=(2, 2))(x)    # 224x224, 2 channels
 
@@ -78,20 +78,3 @@ class SemSegModel(SegmentationModel):
       posembs=self.config.model.get('posembs', (14, 14)),
       dtype=model_dtype
     )
-
-#   def get_metrics_fn(self, split: Optional[str] = None) -> base_model.MetricFn:
-#     del split
-#     return functools.partial(
-#       segmentation_model.semantic_segmentation_metrics_function,
-#       target_is_onehot=self.dataset_meta_data.get('target_is_onehot', False),
-#       metrics=_SEMANTIC_SEGMENTATION_METRICS)
-#
-# _SEMANTIC_SEGMENTATION_METRICS = immutabledict({
-#   'accuracy': (model_utils.weighted_correctly_classified, num_pixels),
-#
-#   # The loss is already normalized, so we set num_pixels to 1.0:
-#   'loss': (model_utils.weighted_softmax_cross_entropy, lambda *a, **kw: 1.0),
-#
-#   # Mean IoU
-#   'mean_iou': (model_utils.mean_iou, num_pixels),
-# })

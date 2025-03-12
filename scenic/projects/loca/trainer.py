@@ -271,7 +271,7 @@ def train(
   if config.checkpoint:
     train_state, start_step = utils.restore_checkpoint(workdir, train_state)
 
-  if start_step == 0 and config.initialization == 'imnet_ckt':
+  if start_step == 0 and config.get('initialization', None) == 'imnet_ckt':
     logging.info('Initializing model using pretrained LOCA ImageNet1k weights.')
     params, ema_params = utils.get_imagenet_ckpt_params(
         config.initialization_ckpt, train_state)

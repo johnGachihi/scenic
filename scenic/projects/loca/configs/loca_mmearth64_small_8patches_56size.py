@@ -16,8 +16,9 @@
 """Default config for LOCA training on ImageNet2012 for 100 epochs."""
 
 import ml_collections
+from markdown_it.rules_block import reference
 
-VARIANT = 'S/16'
+VARIANT = 'S/8'
 _MMEARTH_TRAIN_SIZE = 100_000
 
 """
@@ -47,6 +48,9 @@ SENTINEL2_L2A_STD = [2340.2916479338087, 2375.872101251672, 2256.8997709659416, 
 def get_config():
   """Returns the default config for a 100 epoch LOCA training on ImageNet2012."""
 
+  version, patch = VARIANT.split('/')
+  patch = int(patch)
+
   config = ml_collections.ConfigDict()
   config.experiment_name = '100ep_run'
   # Dataset.
@@ -54,15 +58,20 @@ def get_config():
   config.data_dtype_str = 'float32'
   config.dataset_configs = ml_collections.ConfigDict()
   config.dataset_configs.prefetch_to_device = 2
-  config.dataset_configs.shuffle_buffer_size = 2500
-  reference_resolution = 224
+  config.dataset_configs.shuffle_buffer_size = 25_000
+  reference_resolution = 56
+  reference_patch_width = reference_resolution // patch
+  query_rand_res = reference_resolution
+  query_rand_mask_res = query_rand_res // patch  # Should be equal to patch width/height of rand query
+  query_foc_res = 24
+  query_foc_mask_res = query_foc_res // patch  # Should be equal to patch width/height of focal query
   n_queries = 10
   config.dataset_configs.number_of_focal_queries = n_queries - 1
   config.dataset_configs.pp_train = (
       'permute_channels_last("sentinel2")' +
       f'|standardize_sentinel2({SENTINEL2_L1C_MEAN}, {SENTINEL2_L1C_STD}, {SENTINEL2_L2A_MEAN}, {SENTINEL2_L2A_STD}, "sentinel2", "sentinel2_type")' +
       '|copy("sentinel2", "reference")' +
-      '|init_patch_matching_tracker(14, "target_mask")' +
+      f'|init_patch_matching_tracker({reference_patch_width}, "target_mask")' +
       '|init_box_tracker("target_box")' +
       f'|cropflip_generatemask({reference_resolution}, 32, flip=False, inkey=("reference", "target_mask", "target_box"), outkey=("reference", "target_mask", "target_box"))' +
       # '|value_range(0, 1, data_key="reference")' +
@@ -71,8 +80,8 @@ def get_config():
       # '|random_blur(1.0, data_key="reference")' +
       # f'|standardize({MEAN_RGB}, {STDDEV_RGB}, data_key="reference")' +
       ''.join([f'|copy("sentinel2", "query{i}")' for i in range(n_queries)]) +
-      '|inception_crop_with_mask((224, 224), 32, 100, (14, 14), inkey=("query0", "target_mask", "target_box"), outkey=("query0", "query0_mask", "query0_box"))' +
-      ''.join([f'|inception_crop_with_mask((96, 96), 5, 32, (6, 6), inkey=("query{i}", "target_mask", "target_box"), outkey=("query{i}", "query{i}_mask", "query{i}_box"))' for i in range(1, n_queries)]) +
+      f'|inception_crop_with_mask(({query_rand_res}, {query_rand_res}), 32, 100, ({query_rand_mask_res}, {query_rand_mask_res}), inkey=("query0", "target_mask", "target_box"), outkey=("query0", "query0_mask", "query0_box"))' +
+      ''.join([f'|inception_crop_with_mask(({query_foc_res}, {query_foc_res}), 5, 32, ({query_foc_mask_res}, {query_foc_mask_res}), inkey=("query{i}", "target_mask", "target_box"), outkey=("query{i}", "query{i}_mask", "query{i}_box"))' for i in range(1, n_queries)]) +
       ''.join([f'|flip_with_mask(inkey=("query{i}", "query{i}_mask"), outkey=("query{i}", "query{i}_mask"))' for i in range(n_queries)]) +
       # ''.join([f'|value_range(0, 1, data_key="query{i}")' for i in range(n_queries)]) +
       # ''.join([f'|random_color_jitter(0.8, 0.4, 0.4, 0.2, 0.1, data_key="query{i}")' for i in range(n_queries)]) +
@@ -87,8 +96,6 @@ def get_config():
   config.dataset_configs.train_split = 'train'
 
   # Model.
-  version, patch = VARIANT.split('/')
-  patch = int(patch)
   config.model = ml_collections.ConfigDict()
   config.model.hidden_size = {'Ti': 192,
                               'S': 384,
@@ -114,18 +121,21 @@ def get_config():
   config.model.stochastic_depth = 0.1
   config.model_dtype_str = 'float32'
   config.model.temperature = 0.1
+  # config.model.posembs = (reference_resolution // patch, reference_resolution // patch)
   config.sharpening = 0.05
-  
-  # config.initialization = 'imnet_ckt'
+
+  config.initialization = 'imnet_ckt'
   # config.initialization_ckpt = '/home/admin/john/scenic/scenic/projects/loca/imnet_ckpts/loca_vsmall_imnet1k'
-  # config.initialization_ckpt = '/home/admin/satellite-loca/scenic/scenic/projects/loca/imnet_ckpts/loca_vsmall_imnet1k'
+  config.initialization_ckpt = '/home/admin/satellite-loca/scenic/scenic/projects/loca/imnet_ckpts/loca_vsmall_imnet1k'
 
   # LOCA specific parameters.
   config.n_ref_positions = int((reference_resolution // patch)**2)
   config.apply_cluster_loss = True
   config.reference_seqlen = int(0.2 * config.n_ref_positions)  # 20% of 196 is 39
+  # config.reference_seqlen = int(1. * config.n_ref_positions)
   config.reference_seqlen_selection = 'consecutive'  # or 'unstructured' or 'first'
-  config.query_max_seqlen = 70
+  config.query_max_seqlen = 20
+
 
   # Training.
   config.max_grad_norm = 1
@@ -158,7 +168,7 @@ def get_config():
   config.write_summary = True
   config.xprof = True  # Profile using xprof.
   config.checkpoint = True  # Do checkpointing.
-  config.checkpoint_steps = 1000
+  config.checkpoint_steps = 10000
   config.log_summary_steps = 50
 
   return config

@@ -1,6 +1,6 @@
 loca_base
 loca_tiny
-loca_test
+loca_ft_from_scratch
 loca_small_mmearth64
 loca_tiny_mmearth64
 loca_tiny_imnet
@@ -11,4 +11,7 @@ loca_small_imnet1k
 loca_imnet1k_pretrained_test
 loca_imnet1k_pretrained_test_2
 loca_imnet1k_pretrained_test_3
-loca_test_
+loca_ft_unmasked_100_perc_400ep
+
+/loca_*
+/scenic/projects/loca/imnet_ckpts/loca_vsmall_imnet1k

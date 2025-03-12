@@ -516,7 +516,8 @@ def load_pretrained_weights(pretrained_weights_path, train_state: TrainState):
     pretrained_weights_path, train_state)
   return init_from_pretrain_state(
     train_state,
-    restored_train_state
+    restored_train_state,
+    skip_regex=r'ToTokenSequence_0.*embedding'
   )
 
 
@@ -541,7 +542,7 @@ def get_imagenet_ckpt_params(checkpoint_file: str, train_state: TrainState):
   params['encoderblock_11'] = raw_train_state['student_weights']['encoderblock_11']
   params['encoder_norm'] = raw_train_state['student_weights']['final_encoder_norm']
   params['cross_attention_block'] = raw_train_state['student_weights']['localizer_block_0']
-  params['position_predictor'] = raw_train_state['student_weights']['pos_predictor']
+  # params['position_predictor'] = raw_train_state['student_weights']['pos_predictor']
   # params['projection_head_for_clustering_prediction'] = raw_train_state['student_weights']['output_projection']
   params = freeze(params)
 
@@ -563,7 +564,7 @@ def get_imagenet_ckpt_params(checkpoint_file: str, train_state: TrainState):
   ema_params['encoderblock_11'] = raw_train_state['teacher_weights']['encoderblock_11']
   ema_params['encoder_norm'] = raw_train_state['teacher_weights']['final_encoder_norm']
   ema_params['cross_attention_block'] = raw_train_state['teacher_weights']['localizer_block_0']
-  ema_params['position_predictor'] = raw_train_state['teacher_weights']['pos_predictor']
+  # ema_params['position_predictor'] = raw_train_state['teacher_weights']['pos_predictor']
   # ema_params['projection_head_for_clustering_prediction'] = raw_train_state['teacher_weights']['output_projection']
   ema_params = freeze(ema_params)
 

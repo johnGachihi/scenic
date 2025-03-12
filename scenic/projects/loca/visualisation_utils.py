@@ -36,4 +36,6 @@ def predict_positions(model, train_state, reference: jnp.ndarray, query: jnp.nda
     use_pe=False,
     train=False)
 
+  del r_patch_features, _
+
   return q_loc_pred.squeeze().argmax(axis=1)
