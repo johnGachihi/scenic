@@ -39,7 +39,7 @@ class Sen2ToTokenSequence(nn.Module):
   channel_embed_size: int = 128  # TODO: Expose as config
   posembs: Tuple[int, int] = (14, 14)
   positional_embedding: str = 'learned'
-  channel_groups: Tuple[Tuple[int]] = ((0, 1, 2, 6), (3, 4, 5, 7), (8, 9))
+  channel_groups: Tuple[Tuple[int]] = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11))
 
   @nn.compact
   def __call__(self, x: jnp.ndarray, seqlen: int = -1,
@@ -91,7 +91,6 @@ class Sen2ToTokenSequence(nn.Module):
     x = jnp.reshape(x, (-1, h * w, G, self.hidden_size))
 
     # Possibly dropping some tokens.
-    # Option 1: Channel Group independent masking
     # x = x.reshape(-1, h * w * G, self.hidden_size)
     idx_kept_tokens = None
     n_tokens = x.shape[1]
@@ -102,7 +101,9 @@ class Sen2ToTokenSequence(nn.Module):
       if len(idx_kept_tokens) < n_tokens:
         x = jnp.take(x, idx_kept_tokens, axis=1)
 
-    jax.debug.breakpoint()
+    b, n, _, _ = x.shape
+    x = x.reshape(b, n * G, self.hidden_size)
+
     return x, idx_kept_tokens
 
 
@@ -148,7 +149,6 @@ class ToTokenSequence(nn.Module):
     idx_kept_tokens = None
     # n_tokens = self.posembs[0] * self.posembs[1]
     n_tokens = x.shape[1]
-    # jax.debug.breakpoint()
     if seqlen > 0:
       rng = self.make_rng('droptok')
       idx_kept_tokens = token_indexes_not_to_drop(
@@ -198,6 +198,8 @@ class ViT4LOCA(nn.Module):
     dtype: JAX data type for activations.
   """
 
+  sen2grouped: bool
+  sen2changroups: Tuple[Tuple[int]]
   mlp_dim: int
   num_layers: int
   num_heads: int
@@ -221,23 +223,25 @@ class ViT4LOCA(nn.Module):
                seqlen_selection: str = 'unstructured', debug: bool = False):
     del debug
     # Input image -> sequence of patch tokens.
-    x, idx_kept_tokens = Sen2ToTokenSequence(
-      patches=self.patches,
-      hidden_size=self.hidden_size,
-      posembs=self.posembs
-    )(
-      x, seqlen=seqlen if drop_moment == 'early' else -1,
-      seqlen_selection=seqlen_selection
-    )
-
-    # to_token_fn = ToTokenSequence(
-    #   patches=self.patches,
-    #   hidden_size=self.hidden_size,
-    #   posembs=self.posembs)
-    # x, idx_kept_tokens = to_token_fn(
-    #   x, seqlen=seqlen if drop_moment == 'early' else -1,
-    #   positional_embedding=None if use_pe else 'pe_not_in_use',
-    #   seqlen_selection=seqlen_selection)
+    if self.sen2grouped:
+      x, idx_kept_tokens = Sen2ToTokenSequence(
+        patches=self.patches,
+        hidden_size=self.hidden_size,
+        posembs=self.posembs,
+        channel_groups=self.sen2changroups
+      )(
+        x, seqlen=seqlen if drop_moment == 'early' else -1,
+        seqlen_selection=seqlen_selection
+      )
+    else:
+      to_token_fn = ToTokenSequence(
+        patches=self.patches,
+        hidden_size=self.hidden_size,
+        posembs=self.posembs)
+      x, idx_kept_tokens = to_token_fn(
+        x, seqlen=seqlen if drop_moment == 'early' else -1,
+        positional_embedding=None if use_pe else 'pe_not_in_use',
+        seqlen_selection=seqlen_selection)
 
     # ViT Encoder.
     for lyr in range(self.num_layers):
@@ -261,9 +265,7 @@ class ViT4LOCA(nn.Module):
         bottleneck_dim=self.head_bottleneck_dim,
         output_dim=self.head_output_dim,
         name='projection_head_for_clustering_prediction')(
-        x, train).reshape((-1, self.head_output_dim))
-
-    # jax.debug.breakpoint()
+        x, train).reshape((-1, self.head_output_dim))  # [B * n_patches, D_cluster]
 
     patches_repr = x
     # Drop some tokens (in the reference view).
@@ -315,7 +317,6 @@ class ProjectionHead(nn.Module):
 
   @nn.compact
   def __call__(self, x: jnp.ndarray, train: bool) -> jnp.ndarray:
-    # jax.debug.breakpoint()
     for i in range(self.n_layers):
       x = nn.Dense(self.hidden_dim)(x)
       x = nn.gelu(x)
@@ -325,7 +326,6 @@ class ProjectionHead(nn.Module):
     x /= jnp.linalg.norm(x, axis=-1, keepdims=True)
     x = WeightNormDense(self.output_dim, use_bias=False, name='prototypes',
                         kernel_init=norm_kernel_init_fn)(x)
-    # jax.debug.breakpoint()
     return x
 
 
@@ -380,6 +380,8 @@ class ViTLOCAModel(base_model.BaseModel):
   def build_flax_model(self) -> nn.Module:
     model_dtype = getattr(jnp, self.config.get('model_dtype_str', 'float32'))
     return ViT4LOCA(
+      sen2grouped=self.config.get('sen2grouped', False),
+      sen2changroups=self.config.get('sen2changroups', None),
       mlp_dim=self.config.model.mlp_dim,
       num_layers=self.config.model.num_layers,
       num_heads=self.config.model.num_heads,

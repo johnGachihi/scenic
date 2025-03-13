@@ -89,46 +89,54 @@ def loca_train_step(
     use_ema = config.apply_cluster_loss
     drop_moment = 'late' if config.apply_cluster_loss else 'early'
     _, r_feat_targets, r_patch_features, _ = flax_model.apply(
-        {'params': train_state.ema_params if use_ema else params},
-        batch['reference'],
-        seqlen=config.reference_seqlen,
-        seqlen_selection=config.reference_seqlen_selection,
-        drop_moment=drop_moment,
-        train=True,
-        rngs={'dropout': dropout_rng, 'droptok': droptok_rng})
+      {'params': train_state.ema_params if use_ema else params},
+      batch['reference'],
+      seqlen=config.reference_seqlen,
+      seqlen_selection=config.reference_seqlen_selection,
+      drop_moment=drop_moment,
+      train=True,
+      rngs={'dropout': dropout_rng, 'droptok': droptok_rng})
 
     # Step 2): Forward pass on the QUERY views.
     use_pe = True if config.apply_cluster_loss else False
     #      2) a) Query with `random`-style.
     q_rand_loc_pred, q_rand_feat_pred, _, q_rand_idx_kept = flax_model.apply(
-        {'params': params},
-        batch['query0'],
-        inputs_kv=r_patch_features,
-        seqlen=config.query_max_seqlen,
-        use_pe=use_pe,
-        train=True,
-        rngs={'dropout': dropout_rng, 'droptok': droptok_rng})
+      {'params': params},
+      batch['query0'],
+      inputs_kv=r_patch_features,
+      seqlen=config.query_max_seqlen,
+      use_pe=use_pe,
+      train=True,
+      rngs={'dropout': dropout_rng, 'droptok': droptok_rng})
     #      2) b) Queries with `focal`-style.
     q_foc_loc_pred, q_foc_feat_pred, _, _ = flax_model.apply(
-        {'params': params},
-        batch['queries'],
-        inputs_kv=jnp.tile(r_patch_features, (n_q_foc, 1, 1)),
-        use_pe=use_pe,
-        train=True,
-        rngs={'dropout': dropout_rng})
+      {'params': params},
+      batch['queries'],
+      inputs_kv=jnp.tile(r_patch_features, (n_q_foc, 1, 1)),
+      use_pe=use_pe,
+      train=True,
+      rngs={'dropout': dropout_rng})
     #      2) c) Batch the `random` and `focal` queries together: for both
     #            predictions (`q_loc_pred`) and targets (`q_loc_targets`).
     #
     # q_loc_pred is position logits for all the patches of the queries.
     q_loc_pred = jnp.concatenate([
-        q_rand_loc_pred.reshape(-1, n_pos),
-        q_foc_loc_pred.reshape(-1, n_pos)], axis=0)
+      q_rand_loc_pred.reshape(-1, n_pos),
+      q_foc_loc_pred.reshape(-1, n_pos)], axis=0)
     q_rand_loc_targets = batch['query0_target_position'].reshape(bs, -1)
     # If tokens were dropped in the query0 (i.e. `random`-style query):
     if len(q_rand_idx_kept) < q_rand_loc_targets.shape[1]:
       # then drop the corresponding target positions.
       q_rand_loc_targets = jnp.take(q_rand_loc_targets, q_rand_idx_kept, axis=1)
     q_foc_loc_targets = batch['target_positions']
+
+    if config.get('sen2grouped', False):
+      # Sen2Grouped produces L*3 tokens
+      # Repeat targets for each change group.
+      G = len(config.sen2changroups)
+      q_rand_loc_targets = jnp.tile(q_rand_loc_targets, (1, G))
+      q_foc_loc_targets = jnp.tile(q_foc_loc_targets, (1, G))
+
     q_loc_targets = jnp.concatenate([q_rand_loc_targets.reshape(-1),
                                      q_foc_loc_targets.reshape(-1)],
                                     axis=0)
@@ -145,7 +153,7 @@ def loca_train_step(
     if config.apply_cluster_loss:
       k = r_feat_targets.shape[-1]  # Output dimension for feature pred loss.
       q_feat_pred = jnp.concatenate([
-          q_rand_feat_pred, q_foc_feat_pred], axis=0) / config.model.temperature
+        q_rand_feat_pred, q_foc_feat_pred], axis=0) / config.model.temperature
       # Feature targets.
       r_feat_targets = nn.softmax(r_feat_targets / config.sharpening, axis=-1)
       # We adjust the targets with Optimal Transport to prevent collapse.
@@ -154,16 +162,16 @@ def loca_train_step(
       r_feat_targets = r_feat_targets.reshape(bs, -1, k)
       # Feature targets for the random query.
       q_rand_feat_targets = jnp.take_along_axis(
-          r_feat_targets, jnp.expand_dims(q_rand_loc_targets, axis=-1), axis=1)
+        r_feat_targets, jnp.expand_dims(q_rand_loc_targets, axis=-1), axis=1)
       q_rand_feat_targets = q_rand_feat_targets.reshape(-1, k)
       # Feature targets for the focal queries.
       r_feat_targets = jnp.tile(r_feat_targets, (n_q_foc, 1, 1))
       q_foc_feat_targets = jnp.take_along_axis(
-          r_feat_targets, jnp.expand_dims(q_foc_loc_targets, axis=-1), axis=1)
+        r_feat_targets, jnp.expand_dims(q_foc_loc_targets, axis=-1), axis=1)
       q_foc_feat_targets = q_foc_feat_targets.reshape(-1, k)
       # Concatenate the targets for the random and focal queries.
       q_feat_targets = jnp.concatenate([
-          q_rand_feat_targets, q_foc_feat_targets], axis=0)
+        q_rand_feat_targets, q_foc_feat_targets], axis=0)
       feature_loss = loss_fn(q_feat_pred, q_feat_targets, q_r_intersect)
       # `me-max` regularization.
       avg_prediction = jnp.mean(nn.softmax(q_feat_pred, axis=-1), axis=0)
@@ -172,8 +180,8 @@ def loca_train_step(
 
     total_loss = localization_loss + feature_loss
     return total_loss, (
-        {'label': q_loc_targets, 'batch_mask': q_r_intersect},
-        q_loc_pred, feature_loss)
+      {'label': q_loc_targets, 'batch_mask': q_r_intersect},
+      q_loc_pred, feature_loss)
 
   compute_gradient_fn = jax.value_and_grad(training_loss_fn, has_aux=True)
   (total_loss, (batch, logits, feature_loss)), grad = compute_gradient_fn(
