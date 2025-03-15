@@ -11,7 +11,7 @@ import numpy as np
 
 
 class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
-    VERSION = tfds.core.Version('0.0.3')
+    VERSION = tfds.core.Version('0.0.4')
 
     # def __init__(self, modalities: dict, **kwargs):
     #     super().__init__(**kwargs)
@@ -46,7 +46,7 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
         # Split indices
         splits_path = data_root / 'data_1M_v001_64_splits.json'
         with open(splits_path, "r") as f:
-            indices = json.load(f)["train"][:100_000]
+            indices = json.load(f)["train"][:300_000]
 
         # Tile info
         tile_info_path = data_root / 'data_1M_v001_64_tile_info.json'
