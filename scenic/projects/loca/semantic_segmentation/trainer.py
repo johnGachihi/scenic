@@ -149,12 +149,9 @@ def eval_step(
     labels=batch['label'], logits=logits, batch_mask=batch['batch_mask'])
 
   # Collect predictions and batches from all hosts.
-  predictions = jnp.argmax(logits, axis=-1)
-  predictions = jax.lax.all_gather(predictions, 'batch')
-  batch = jax.lax.all_gather(batch, 'batch')
   confusion_matrix = jax.lax.all_gather(confusion_matrix, 'batch')
 
-  return batch, predictions, metrics, confusion_matrix
+  return metrics, confusion_matrix
 
 def train(
     *,
@@ -247,7 +244,7 @@ def train(
 
     for _ in range(steps_per_eval):
       eval_batch = next(dataset.valid_iter)
-      _, _, e_metrics, confusion_matrix = eval_step_pmapped(
+      e_metrics, confusion_matrix = eval_step_pmapped(
           train_state, eval_batch)
       eval_metrics.append(train_utils.unreplicate_and_get(e_metrics))
       # Evaluate global metrics on one of the hosts (lead_host), but given
@@ -280,7 +277,7 @@ def train(
 
       for _ in range(total_test_steps):
         test_batch = next(dataset.test_iter)
-        _, _, e_metrics, confusion_matrix = eval_step_pmapped(
+        e_metrics, confusion_matrix = eval_step_pmapped(
             train_state, test_batch)
         test_metrics.append(train_utils.unreplicate_and_get(e_metrics))
         # Evaluate global metrics on one of the hosts (lead_host), but given
@@ -305,6 +302,7 @@ def train(
     writer.flush()
     del test_summary
     del eval_metrics
+    del eval_all_confusion_mats
     return eval_summary
 
   log_eval_steps = config.get('log_eval_steps') or steps_per_epoch

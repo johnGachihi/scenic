@@ -60,7 +60,7 @@ def get_dataset(*,
         batch_size=eval_batch_size,
         preprocess_fn=builder.get_preprocess_fn(dataset_configs.pp_eval),
         shuffle_buffer_size=dataset_configs.shuffle_buffer_size,
-        prefetch=dataset_configs.get('prefetch_to_host', 2),
+        prefetch=dataset_configs.get('prefetch_to_host', 1),
         drop_remainder=False,
         cache=False,
         ignore_errors=True)
@@ -76,13 +76,13 @@ def get_dataset(*,
 
     maybe_pad_batches_eval = functools.partial(
         dataset_utils.maybe_pad_batch, batch_size=eval_batch_size,
-        train=False, pixel_level=True, inputs_key='s2_img'
+        train=False, pixel_level=True, inputs_key='label'
     )
     eval_iter = iter(val_ds)
     eval_iter = map(dataset_utils.tf_to_numpy, eval_iter)
     eval_iter = map(maybe_pad_batches_eval, eval_iter)
     eval_iter = map(shard_batches, eval_iter)
-    eval_iter = jax_utils.prefetch_to_device(eval_iter, prefetch_buffer_size)
+    eval_iter = jax_utils.prefetch_to_device(eval_iter, 1)
 
     input_shape = (-1,) + tuple(train_ds.element_spec['s2_img'].shape[1:])
     meta_data = {

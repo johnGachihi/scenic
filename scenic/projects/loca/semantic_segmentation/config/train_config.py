@@ -69,13 +69,13 @@ def get_config():
 
     # Training
     config.batch_size = 32
-    config.eval_batch_size = 1
+    config.eval_batch_size = 32
     config.num_training_epochs = 100
     config.rng_seed = 42
     steps_per_epoch = _SEN1_FLOODS11_TRAIN_SIZE // config.batch_size
     total_steps = config.num_training_epochs * steps_per_epoch
 
-    config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_unmasked_20_perc_16patches_224size/checkpoint_78100'
+    config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_mmearth64_small_32patches_224size/checkpoint_78100'
 
     # Learning rate.
     config.lr_configs = ml_collections.ConfigDict()
