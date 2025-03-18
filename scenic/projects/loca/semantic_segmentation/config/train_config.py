@@ -34,6 +34,7 @@ def get_config():
     config.dataset_configs.dataset = 'sen1_floods11'
     config.dataset_configs.train_split = 'train'
     config.dataset_configs.val_split = 'val'
+    config.dataset_configs.test_split = 'test'
     config.dataset_configs.num_classes = 2
 
     # Model
