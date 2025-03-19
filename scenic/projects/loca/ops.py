@@ -156,6 +156,13 @@ class ThreeInKeysThreeOutKeys(object):
 
     return get_ikok_pp_fn
 
+@registry.Registry.register("preprocess_ops.unsqueeze", "function")
+def unsqueeze(inkey, axis):
+  """Unsqueeze a tensor along the specified axis."""
+  def _unsqueeze(data):
+    data[inkey] = tf.expand_dims(data[inkey], axis)
+    return data
+  return _unsqueeze
 
 @registry.Registry.register("preprocess_ops.permute_channels_last", "function")
 def permute_channels_last(inkey):
@@ -166,6 +173,14 @@ def permute_channels_last(inkey):
     return data
 
   return _permute_channels_last
+
+@registry.Registry.register("preprocess_ops.cast", "function")
+def cast(dtype, inkey):
+  """Cast a tensor to a different dtype."""
+  def _cast(data):
+    data[inkey] = tf.cast(data[inkey], dtype)
+    return data
+  return _cast
 
 @registry.Registry.register("preprocess_ops.standardize_sentinel2", "function")
 def standardize_sentinel2(l1c_mean, l1c_std, l2a_mean, l2a_std, 

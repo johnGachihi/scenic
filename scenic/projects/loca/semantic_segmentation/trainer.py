@@ -66,7 +66,7 @@ def train_step(
   def training_loss_fn(params):
     _logits = flax_model.apply(
       {'params': params},
-      batch['s2_img'],
+      batch['s2_img'] if 's2_img' in batch else batch['input'],
       train=True,
       rngs={'dropout': dropout_rng})
 
@@ -139,7 +139,7 @@ def eval_step(
 
   logits = flax_model.apply(
     {'params': train_state.params},
-    batch['s2_img'],
+    batch['s2_img'] if 's2_img' in batch else batch['input'],
     train=False,
     debug=debug)
 

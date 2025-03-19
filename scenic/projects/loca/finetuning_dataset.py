@@ -105,7 +105,7 @@ def get_dataset(*,
     test_iter = map(shard_batches, test_iter)
     test_iter = jax_utils.prefetch_to_device(test_iter, 1)
 
-    input_shape = (-1,) + tuple(train_ds.element_spec['s2_img'].shape[1:])
+    input_shape = (-1,) + dataset_configs.input_shape
     meta_data = {
         'num_classes': dataset_configs.num_classes,
         'input_shape': input_shape,
