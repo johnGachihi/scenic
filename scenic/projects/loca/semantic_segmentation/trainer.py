@@ -288,7 +288,7 @@ def train(
 
       test_global_metrics_summary = {}
       if lead_host and global_metrics_fn is not None:
-        test_global_metrics_summary = global_metrics_fn(eval_all_confusion_mats,
+        test_global_metrics_summary = global_metrics_fn(test_all_confusion_mats,
                                                         dataset.meta_data)
         # test_global_metrics_summary = utils.compute_confusion_matrix_metrics(
         #     test_all_confusion_mats, return_per_class_metrics=True)

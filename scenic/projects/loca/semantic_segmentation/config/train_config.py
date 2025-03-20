@@ -4,14 +4,9 @@ VARIANT = 'S/16'
 _SEN1_FLOODS11_TRAIN_SIZE = 284
 _SUBSTATION_TRAIN_SIZE = 26522 * 0.8
 
-SENTINEL2_L2A_MEAN = [1349.3977794889083, 1479.9521800379623, 1720.3688077425966, 1899.1848715975957,
-                      2253.9309600057886, 2808.2001963620132, 3003.424149045887, 3149.5364927329806,
-                      3110.840562275062, 3213.7636154015954, 2399.086213373806,
-                      1811.7986415136786]
-SENTINEL2_L2A_STD = [2340.2916479338087, 2375.872101251672, 2256.8997709659416, 2354.181051828758,
-                     2292.99569489449, 2033.2166835293804, 1920.1736418230105, 1816.6152354201365,
-                     1988.1938283738782, 1947.9031620588928, 1473.224812450967,
-                     1390.6781165633136]
+
+SENTINEL2_L2A_MEAN = [1431, 1233, 1209, 1192, 1448, 2238, 2609, 2537, 2828, 884, 2226, 1537]
+SENTINEL2_L2A_STD = [157, 254, 290, 420, 363, 457, 575, 606, 630, 156, 554, 523]
 
 def get_config():
     config = ml_collections.ConfigDict()
@@ -103,14 +98,14 @@ def get_config():
     config.apply_cluster_loss = False  # Always false for finetuning
 
     # Training
-    config.batch_size = 16
-    config.eval_batch_size = 16
-    config.num_training_epochs = 100
+    config.batch_size = 64
+    config.eval_batch_size = 64
+    config.num_training_epochs = 200
     config.rng_seed = 42
     steps_per_epoch = (_SEN1_FLOODS11_TRAIN_SIZE if config.dataset_configs.dataset == 'sen1_floods11' else _SUBSTATION_TRAIN_SIZE) // config.batch_size
     total_steps = config.num_training_epochs * steps_per_epoch
 
-    # config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_mmearth64_small_32patches_224size/checkpoint_78100'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_unmasked_20_perc_8patches_56size/checkpoint_78100'
 
     # Learning rate.
     config.lr_configs = ml_collections.ConfigDict()
@@ -129,7 +124,10 @@ def get_config():
     config.xprof = True  # Profile using xprof.
     # config.checkpoint = True  # Do checkpointing.
     # config.checkpoint_steps = 10000
-    config.log_summary_steps = 100
-    config.log_eval_steps = 1
+    config.log_summary_steps = 100 if config.dataset_configs.dataset == 'sen1_floods11' else 100
+    config.log_eval_steps = 10 if config.dataset_configs.dataset == 'sen1_floods11' else 1000
+
+    config.class_rebalancing_factor = 0.9 if config.dataset_configs.dataset == 'substation' else None
+    config.class_proportions = [0.99, 0.01] if config.dataset_configs.dataset == 'substation' else None
 
     return config
