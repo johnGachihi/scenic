@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="flax" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="flax" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="$PROJECT_DIR$/../mambaforge/envs/env" project-jdk-type="Python SDK" />
 </project>

@@ -39,7 +39,8 @@ class Sen2ToTokenSequence(nn.Module):
   channel_embed_size: int = 128  # TODO: Expose as config
   posembs: Tuple[int, int] = (14, 14)
   positional_embedding: str = 'learned'
-  channel_groups: Tuple[Tuple[int]] = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11))
+  channel_groups: Tuple[Tuple[int]] = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11)),
+  maintain_seqlen: bool = False
 
   @nn.compact
   def __call__(self, x: jnp.ndarray, seqlen: int = -1,
@@ -91,7 +92,6 @@ class Sen2ToTokenSequence(nn.Module):
     x = jnp.reshape(x, (-1, h * w, G, self.hidden_size))
 
     # Possibly dropping some tokens.
-    # x = x.reshape(-1, h * w * G, self.hidden_size)
     idx_kept_tokens = None
     n_tokens = x.shape[1]
     if seqlen > 0:
@@ -101,10 +101,16 @@ class Sen2ToTokenSequence(nn.Module):
       if len(idx_kept_tokens) < n_tokens:
         x = jnp.take(x, idx_kept_tokens, axis=1)
 
-    b, n, _, _ = x.shape
-    x = x.reshape(b, n * G, self.hidden_size)
+    b, L, _, _ = x.shape
+    if not self.maintain_seqlen:
+      return x.reshape(b, L * G, self.hidden_size), idx_kept_tokens
+    else:
+      rng = self.make_rng('changroup')
+      groups_to_keep = jax.random.randint(rng, shape=(b, L), minval=0, maxval=G)
+      x = jnp.take_along_axis(x, groups_to_keep[:, :, None, None], axis=2)
+      x = x.squeeze(axis=2)
 
-    return x, idx_kept_tokens
+      return x, idx_kept_tokens
 
 
 class ToTokenSequence(nn.Module):
@@ -200,6 +206,7 @@ class ViT4LOCA(nn.Module):
 
   sen2grouped: bool
   sen2changroups: Tuple[Tuple[int]]
+  sen2grouped_maintain_seqlen: bool
   mlp_dim: int
   num_layers: int
   num_heads: int
@@ -228,7 +235,8 @@ class ViT4LOCA(nn.Module):
         patches=self.patches,
         hidden_size=self.hidden_size,
         posembs=self.posembs,
-        channel_groups=self.sen2changroups
+        channel_groups=self.sen2changroups,
+        maintain_seqlen=self.sen2grouped_maintain_seqlen
       )(
         x, seqlen=seqlen if drop_moment == 'early' else -1,
         seqlen_selection=seqlen_selection
@@ -382,6 +390,7 @@ class ViTLOCAModel(base_model.BaseModel):
     return ViT4LOCA(
       sen2grouped=self.config.get('sen2grouped', False),
       sen2changroups=self.config.get('sen2changroups', None),
+      sen2grouped_maintain_seqlen=self.config.get('sen2grouped_maintain_seqlen', False),
       mlp_dim=self.config.model.mlp_dim,
       num_layers=self.config.model.num_layers,
       num_heads=self.config.model.num_heads,

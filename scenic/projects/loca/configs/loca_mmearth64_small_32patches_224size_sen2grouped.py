@@ -16,7 +16,6 @@
 """Default config for LOCA training on ImageNet2012 for 100 epochs."""
 
 import ml_collections
-from markdown_it.rules_block import reference
 
 VARIANT = 'S/16'
 _MMEARTH_TRAIN_SIZE = 100_000
@@ -135,6 +134,7 @@ def get_config():
   config.query_max_seqlen = 70
 
   config.sen2grouped = True
+  config.sen2grouped_maintain_seqlen = True
   # B1:Aerosol = 0, B2:Blue = 1, B3:Green = 2, B4:Red = 3,
   # B5:RedEdge1 = 4, B6:RedEdge2 = 5, B7:RedEdge3 = 6, B8:NIR = 7, B8A:RedEdge4 = 8,
   # B9:WaterVapor = 9, B11:SWIR1 = 10, B12:SWIR2 = 11

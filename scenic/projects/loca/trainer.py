@@ -36,7 +36,6 @@ from scenic.projects.loca import vit
 from scenic.train_lib import lr_schedules
 from scenic.train_lib import train_utils
 
-
 # Aliases for custom types:
 Batch = Dict[str, jnp.ndarray]
 
@@ -72,11 +71,13 @@ def loca_train_step(
     The updated state of training.
   """
   # Some preparations.
-  new_rng, dropout_rng, droptok_rng = jax.random.split(train_state.rng, num=3)
+  new_rng, dropout_rng, droptok_rng, changroup_rng = jax.random.split(train_state.rng, num=4)
   dropout_rng = train_utils.bind_rng_to_host_device(
       dropout_rng, axis_name='batch', bind_to='device')
   droptok_rng = train_utils.bind_rng_to_host_device(
       droptok_rng, axis_name='batch', bind_to='device')
+  changroup_rng = train_utils.bind_rng_to_host_device(
+      changroup_rng, axis_name='batch', bind_to='device')
   step = train_state.global_step
   momentum_parameter = momentum_parameter_scheduler(step)
   n_pos = config.n_ref_positions  # Number of reference positions.
@@ -95,7 +96,7 @@ def loca_train_step(
       seqlen_selection=config.reference_seqlen_selection,
       drop_moment=drop_moment,
       train=True,
-      rngs={'dropout': dropout_rng, 'droptok': droptok_rng})
+      rngs={'dropout': dropout_rng, 'droptok': droptok_rng, 'changroup': changroup_rng})
 
     # Step 2): Forward pass on the QUERY views.
     use_pe = True if config.apply_cluster_loss else False
@@ -107,7 +108,7 @@ def loca_train_step(
       seqlen=config.query_max_seqlen,
       use_pe=use_pe,
       train=True,
-      rngs={'dropout': dropout_rng, 'droptok': droptok_rng})
+      rngs={'dropout': dropout_rng, 'droptok': droptok_rng, 'changroup': changroup_rng})
     #      2) b) Queries with `focal`-style.
     q_foc_loc_pred, q_foc_feat_pred, _, _ = flax_model.apply(
       {'params': params},
@@ -115,7 +116,7 @@ def loca_train_step(
       inputs_kv=jnp.tile(r_patch_features, (n_q_foc, 1, 1)),
       use_pe=use_pe,
       train=True,
-      rngs={'dropout': dropout_rng})
+      rngs={'dropout': dropout_rng, 'droptok': droptok_rng, 'changroup': changroup_rng})
     #      2) c) Batch the `random` and `focal` queries together: for both
     #            predictions (`q_loc_pred`) and targets (`q_loc_targets`).
     #
@@ -130,16 +131,16 @@ def loca_train_step(
       q_rand_loc_targets = jnp.take(q_rand_loc_targets, q_rand_idx_kept, axis=1)
     q_foc_loc_targets = batch['target_positions']
 
-    if config.get('sen2grouped', False):
+    if config.get('sen2grouped', False) and not config.get('sen2grouped_maintain_seqlen', False):
       # Sen2Grouped produces L*3 tokens
-      # Repeat targets for each change group.
+      # Repeat targets for each channel group.
       G = len(config.sen2changroups)
       q_rand_loc_targets = jnp.tile(q_rand_loc_targets, (1, G))
       q_foc_loc_targets = jnp.tile(q_foc_loc_targets, (1, G))
 
-    q_loc_targets = jnp.concatenate([q_rand_loc_targets.reshape(-1),
-                                     q_foc_loc_targets.reshape(-1)],
-                                    axis=0)
+    q_loc_targets = jnp.concatenate(
+      [q_rand_loc_targets.reshape(-1), q_foc_loc_targets.reshape(-1)],
+      axis=0)
     q_r_intersect = q_loc_targets != -1  # intersection of reference and queries
     # q_loc_targets are the position to predict for all the patches of the
     # queries.
@@ -185,10 +186,10 @@ def loca_train_step(
 
   compute_gradient_fn = jax.value_and_grad(training_loss_fn, has_aux=True)
   (total_loss, (batch, logits, feature_loss)), grad = compute_gradient_fn(
-      train_state.params)
+    train_state.params)
   metrics = metrics_fn(logits, batch)
   metrics.update(
-      dict(total_loss=(total_loss, 1), feature_loss=(feature_loss, 1)))
+    dict(total_loss=(total_loss, 1), feature_loss=(feature_loss, 1)))
 
   # Update the network parameters.
   grad = jax.lax.pmean(grad, axis_name='batch')
@@ -197,22 +198,22 @@ def loca_train_step(
   new_train_state = train_state
   if train_state.tx is not None:
     updates, new_opt_state = train_state.tx.update(
-        grad, train_state.opt_state, train_state.params)
+      grad, train_state.opt_state, train_state.params)
     new_params = optax.apply_updates(train_state.params, updates)
 
     # update the teacher weights
     new_ema_params = jax.tree_util.tree_map(
-        lambda s, t: momentum_parameter * t + (1 - momentum_parameter) * s,
-        new_params,
-        train_state.ema_params,
+      lambda s, t: momentum_parameter * t + (1 - momentum_parameter) * s,
+      new_params,
+      train_state.ema_params,
     )
 
     new_train_state = train_state.replace(  # pytype: disable=attribute-error
-        global_step=step + 1,
-        opt_state=new_opt_state,
-        params=new_params,
-        ema_params=new_ema_params,
-        rng=new_rng)
+      global_step=step + 1,
+      opt_state=new_opt_state,
+      params=new_params,
+      ema_params=new_ema_params,
+      rng=new_rng)
   return new_train_state, metrics
 
 
@@ -248,23 +249,23 @@ def train(
   rng, init_rng = jax.random.split(rng)
   (params, _, num_trainable_params,
    gflops) = train_utils.initialize_model(
-       model_def=model.flax_model,
-       input_spec=[(dataset.meta_data['input_shape'],
-                    dataset.meta_data.get('input_dtype', jnp.float32))],
-       config=config, rngs=init_rng)
+    model_def=model.flax_model,
+    input_spec=[(dataset.meta_data['input_shape'],
+                 dataset.meta_data.get('input_dtype', jnp.float32))],
+    config=config, rngs={'params': init_rng, 'changroup': init_rng})
   # Only one model function but two sets of parameters.
   ema_params = copy.deepcopy(params)
 
   # Get learning rate and ema temperature schedulers.
   learning_rate_fn = lr_schedules.get_learning_rate_fn(config)
   momentum_parameter_scheduler = lr_schedules.compound_lr_scheduler(
-      config.momentum_rate)
+    config.momentum_rate)
 
   # Create optimizer.
   weight_decay_mask = jax.tree_util.tree_map(lambda x: x.ndim != 1, params)
   tx = optax.inject_hyperparams(optax.adamw)(
-      learning_rate=learning_rate_fn, weight_decay=config.weight_decay,
-      mask=weight_decay_mask,)
+    learning_rate=learning_rate_fn, weight_decay=config.weight_decay,
+    mask=weight_decay_mask,)
   opt_state = jax.jit(tx.init, backend='cpu')(params)
 
   # Create chrono class to track and store training statistics and metadata.
@@ -272,8 +273,8 @@ def train(
 
   # Create the TrainState to track training state (i.e. params and optimizer).
   train_state = utils.TrainState(
-      global_step=0, opt_state=opt_state, tx=tx, params=params,
-      ema_params=ema_params, rng=rng, metadata={'chrono': chrono.save()})
+    global_step=0, opt_state=opt_state, tx=tx, params=params,
+    ema_params=ema_params, rng=rng, metadata={'chrono': chrono.save()})
 
   start_step = train_state.global_step
   if config.checkpoint:
@@ -282,7 +283,7 @@ def train(
   if start_step == 0 and config.get('initialization', None) == 'imnet_ckt':
     logging.info('Initializing model using pretrained LOCA ImageNet1k weights.')
     params, ema_params = utils.get_imagenet_ckpt_params(
-        config.initialization_ckpt, train_state)
+      config.initialization_ckpt, train_state)
     train_state = utils.TrainState(
       global_step=0, opt_state=opt_state, tx=tx, params=params,
       ema_params=ema_params, rng=rng, metadata={'chrono': chrono.save()})
@@ -293,29 +294,31 @@ def train(
   train_state = jax_utils.replicate(train_state)
   del params, ema_params
   total_steps, steps_per_epoch = train_utils.get_num_training_steps(
-      config, dataset.meta_data)
+    config, dataset.meta_data)
 
   # The function that performs one step of loca training.
   loca_train_step_pmapped = jax.pmap(
-      functools.partial(
-          loca_train_step,
-          flax_model=model.flax_model,
-          loss_fn=model.loss_function,
-          metrics_fn=model.get_metrics_fn(),
-          momentum_parameter_scheduler=momentum_parameter_scheduler,
-          config=config),
-      axis_name='batch',
-      # We can donate both buffers of train_state and train_batch.
-      donate_argnums=(0, 1),
+    functools.partial(
+      loca_train_step,
+      flax_model=model.flax_model,
+      loss_fn=model.loss_function,
+      metrics_fn=model.get_metrics_fn(),
+      momentum_parameter_scheduler=momentum_parameter_scheduler,
+      config=config),
+    axis_name='batch',
+    # We can donate both buffers of train_state and train_batch.
+    donate_argnums=(0, 1),
   )
 
   train_metrics, train_summary = [], None
   chrono.inform(start_step, total_steps, config.batch_size, steps_per_epoch)
   report_progress = periodic_actions.ReportProgress(num_train_steps=total_steps,
                                                     writer=writer)
+
   def write_note(note):
     if lead_host:
       platform.work_unit().set_notes(note)
+
   hooks = []
   if lead_host:
     hooks.append(report_progress)
@@ -340,10 +343,10 @@ def train(
       if lead_host:
         chrono.tick(step, writer, write_note)
       train_summary = train_utils.log_train_summary(
-          step=step,
-          train_metrics=jax.tree_util.tree_map(train_utils.unreplicate_and_get,
-                                               train_metrics),
-          writer=writer)
+        step=step,
+        train_metrics=jax.tree_util.tree_map(train_utils.unreplicate_and_get,
+                                             train_metrics),
+        writer=writer)
       chrono.resume()
       train_metrics = []
     ##################### CHECKPOINTING ###################
