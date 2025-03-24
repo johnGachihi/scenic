@@ -11,7 +11,7 @@ import numpy as np
 
 
 class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
-    VERSION = tfds.core.Version('0.0.4')
+    VERSION = tfds.core.Version('0.0.5')
 
     # def __init__(self, modalities: dict, **kwargs):
     #     super().__init__(**kwargs)
@@ -34,6 +34,7 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
                 'id': tfds.features.Text(),
                 'sentinel2_type': tfds.features.Text(),  # l1c or l2a
             }),
+            alternative_file_formats=['array_record']
         )
 
     def _split_generators(self, dl_manager):
