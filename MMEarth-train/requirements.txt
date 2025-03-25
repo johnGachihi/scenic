@@ -1,0 +1,7 @@
+ninja
+timm==0.9.7
+wandb
+tensorboardX
+kornia
+torchmetrics
+h5py
