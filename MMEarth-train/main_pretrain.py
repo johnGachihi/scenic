@@ -218,7 +218,11 @@ def main(args):
     len_dataset = len(ds)
     train_sampler = torch.utils.data.RandomSampler(ds, num_samples=len_dataset)
     train_dataloader = torch.utils.data.DataLoader(
-        ds, sampler=train_sampler, batch_size=32)
+        ds,
+        sampler=train_sampler,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+    )
 
     
     if global_rank == 0 and args.log_dir is not None:
