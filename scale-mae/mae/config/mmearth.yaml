@@ -1,0 +1,9 @@
+data:
+  type: mmearth
+  # size: 224
+  oversample: 1.0
+  mean: [0.368, 0.381, 0.3436]
+  std: [0.2035, 0.1854, 0.1849]
+  vis_factor: 1.0
+  base_resolution: 2.5
+  

@@ -1,0 +1,21 @@
+python -m torch.distributed.launch --nproc_per_node=1 main_pretrain.py \
+  --model mae_vit_small_patch4 \
+  --name sanity_check \
+  --config /home/admin/satellite-loca/scenic/scale-mae/mae/config/mmearth.yaml \
+  --input_size 56 \
+  --patch_size 4 \
+  --band_config 28 7 \
+  --fixed_output_size_min 56 \
+  --fixed_output_size_max 84 \
+  --target_size 56 112 \
+  --source_size 56 \
+  --batch_size 64 \
+  --scale_min 0.2 \
+  --scale_max 1.0 \
+  --epochs 500 \
+  --warmup_epochs 10 \
+  --output_dir output_dir \
+  --log_dir log_dir \
+  --num_workers 8 \
+  --skip_knn_eval \
+  --wandb \
