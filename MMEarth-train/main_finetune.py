@@ -23,6 +23,8 @@ from timm.data.mixup import Mixup
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from timm.models.layers import trunc_normal_
 from timm.utils import ModelEma
+from torchinfo import summary
+
 
 import helpers
 import models.convnextv2 as convnextv2
@@ -34,6 +36,10 @@ from geobenchdataset import get_geobench_dataloaders
 from helpers import NativeScalerWithGradNormCount as NativeScaler
 from helpers import str2bool, remap_checkpoint_keys, load_custom_checkpoint
 from optim_factory import create_optimizer, LayerDecayValueAssigner
+from sen1floods11_dataset import Sen1Floods11Dataset
+
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
 GEO_BENCH_DATASETS = ['m-eurosat', 'm-so2sat', 'm-bigearthnet', 'm-brick-kiln', 'm-cashew-plant', 'm-SA-crop-type']
 
@@ -46,6 +52,7 @@ def criterion_fn(args):
     '''
 
     criterion_dict = {
+        "sen1floods11": torch.nn.CrossEntropyLoss(ignore_index=-1),
         "m-eurosat": LabelSmoothingCrossEntropy(args.smoothing),
         "m-so2sat": LabelSmoothingCrossEntropy(args.smoothing),
         "m-bigearthnet": LabelSmoothingBinaryCrossEntropy(args.smoothing),
@@ -334,6 +341,7 @@ def get_args_parser():
         "--data_set",
         default="m-bigearthnet",
         choices=[
+            "sen1floods11",
             "m-eurosat",
             "m-so2sat",
             "m-bigearthnet",
@@ -460,14 +468,40 @@ def main(args: argparse.Namespace):
             no_ffcv=args.no_ffcv,
             seed=args.seed,
         )
+    elif args.data_set == "sen1floods11":
+        train_ds = Sen1Floods11Dataset(split='train')
+        val_ds = Sen1Floods11Dataset(split='val')
+
+        train_dataloader = torch.utils.data.DataLoader(
+            train_ds,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers,
+            drop_last=False,
+            persistent_workers=True,
+        )
+        val_dataloader = torch.utils.data.DataLoader(
+            val_ds,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=args.num_workers,
+            drop_last=False,
+            persistent_workers=True,
+        )
+        task = None
+        num_classes = 2
     else:
         # call a new dataset function here
         # TODO: Add new dataset function here
         raise ValueError(f"Unknown dataset: {args.data_set}") 
     
     
-    num_classes = task.num_classes
-    samples, targets, _, _ = next(iter(train_dataloader))
+    num_classes = task.num_classes if task is not None else num_classes
+    if args.data_set == "sen1floods11":
+        samples, targets = next(iter(train_dataloader))
+    else:
+        samples, targets, _, _ = next(iter(train_dataloader))
+
     in_channels = samples.shape[1]
     print('in_channels:', in_channels)
     print('num_classes:', num_classes)
@@ -513,10 +547,14 @@ def main(args: argparse.Namespace):
 
     ####################################################################################################
 
-    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print("Model = %s" % str(model_without_ddp))
-    print("number of params:", n_parameters)
+    n_parameters = sum(p.numel() for p in model.parameters())
+    n_trainable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     eff_batch_size = args.batch_size * args.update_freq * helpers.get_world_size()
+    print("Model = %s" % str(model_without_ddp))
+    summary(model, input_size=(eff_batch_size, samples.shape[1], samples.shape[2], samples.shape[3]))
+    print("number of params:", n_parameters)
+    print("number of trainable params:", n_trainable_parameters)
+
     num_training_steps_per_epoch = len(train_dataloader) // eff_batch_size
     if args.lr is None:
         args.lr = args.blr * eff_batch_size / 256
@@ -595,7 +633,7 @@ def main(args: argparse.Namespace):
     start_time = time.time()
 
     for epoch in range(args.start_epoch, args.epochs):
-        if "segmentation" in task.label_type:
+        if task is not None and "segmentation" in task.label_type:
             # for unet we probe the decoder only for 50 epochs, and then fine-tune for 150 epochs
             if epoch == 50:
                 if "resnet" in args.model:
@@ -658,11 +696,14 @@ def main(args: argparse.Namespace):
             )
 
             logging_text = "Metric: "
-            for k, v in train_stats.items():
+            for k, v in test_stats.items():
                 if k != "loss":
                     logging_text += f"{k} - {v:.3f} "
                     metric_key = k
-            logging_text += f" on {val_samples} test samples"   
+            logging_text += f" on {val_samples} test samples"
+
+            print(logging_text)
+
 
             if max_accuracy < test_stats[metric_key]:
                 max_accuracy = test_stats[metric_key]
@@ -678,13 +719,13 @@ def main(args: argparse.Namespace):
                     )
                 print(f"Max accuracy: {max_accuracy:.2f}%")
 
-    
 
             log_stats = {
                 **{f"train_{k}": v for k, v in train_stats.items()},
                 **{f"test_{k}": v for k, v in test_stats.items()},
                 "epoch": epoch,
                 "n_parameters": n_parameters,
+                "n_trainable_parameters": n_trainable_parameters
             }
 
             if args.wandb:
@@ -695,6 +736,7 @@ def main(args: argparse.Namespace):
                 **{f"train_{k}": v for k, v in train_stats.items()},
                 "epoch": epoch,
                 "n_parameters": n_parameters,
+                "n_trainable_parameters": n_trainable_parameters
             }
 
         if args.output_dir and helpers.is_main_process():
@@ -715,7 +757,7 @@ def main(args: argparse.Namespace):
             args.local_rank = 0
             args.distributed = False
         
-        if "segmentation" not in task.label_type:
+        if task is not None and "segmentation" not in task.label_type:
             ckpt_file = 'checkpoint-99.pth'
         else:
             ckpt_file = 'checkpoint-199.pth'

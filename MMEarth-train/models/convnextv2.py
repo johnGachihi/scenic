@@ -8,6 +8,7 @@ from torch import Tensor
 
 from .norm_layers import LayerNorm, GRN
 from .convnextv2_unet import ConvNeXtV2_unet
+from .convnextv2_simple_cnn_decoder import ConvNeXtV2_SimpleCNNDecoder
 
 
 # All rights reserved.
@@ -244,6 +245,10 @@ def convnextv2_large(**kwargs):
 
 def convnextv2_huge(**kwargs):
     model = ConvNeXtV2(depths=[3, 3, 27, 3], dims=[352, 704, 1408, 2816], **kwargs)
+    return model
+
+def convnextv2_simplecnndec_tiny(**kwargs):
+    model = ConvNeXtV2_SimpleCNNDecoder(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768], **kwargs)
     return model
 
 def convnextv2_unet_atto(**kwargs):

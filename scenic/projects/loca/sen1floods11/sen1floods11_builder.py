@@ -17,7 +17,7 @@ def s1_to_s2_filename(fname):
     return '_'.join(split[:-1] + [split[-1].replace('S1', 'S2')])
 
 class Sen1Floods11(tfds.core.GeneratorBasedBuilder):
-    VERSION = tfds.core.Version('0.0.1')
+    VERSION = tfds.core.Version('0.0.2')
 
     def _info(self):
         return tfds.core.DatasetInfo(
@@ -30,12 +30,13 @@ class Sen1Floods11(tfds.core.GeneratorBasedBuilder):
 
     def _split_generators(self, dl_manager):
         # TODO: Extract absolute paths
-        train_split_csv = '/home/admin/john/data/sen1floods11/splits/flood_handlabeled/flood_train_data.csv'
-        val_split_csv = '/home/admin/john/data/sen1floods11/splits/flood_handlabeled/flood_valid_data.csv'
-        test_split_csv = '/home/admin/john/data/sen1floods11/splits/flood_handlabeled/flood_test_data.csv'
+        root_path = '/home/admin/satellite-loca/data/sen1floods11'
+        train_split_csv = root_path + '/splits/flood_handlabeled/flood_train_data.csv'
+        val_split_csv = root_path + '/splits/flood_handlabeled/flood_valid_data.csv'
+        test_split_csv = root_path + '/splits/flood_handlabeled/flood_test_data.csv'
 
-        data_root = Path('/home/admin/john/data/sen1floods11/data/flood_events/HandLabeled/S2Hand')
-        label_root = Path('/home/admin/john/data/sen1floods11/data/flood_events/HandLabeled/LabelHand')
+        data_root = root_path / Path('data/flood_events/HandLabeled/S2Hand')
+        label_root = root_path / Path('data/flood_events/HandLabeled/LabelHand')
 
         return {
             'train': self._generate_examples(data_root, label_root, train_split_csv),
@@ -54,7 +55,4 @@ class Sen1Floods11(tfds.core.GeneratorBasedBuilder):
                 s2_img = s2_img.astype(np.int32)
                 label = label.astype(np.int32)
 
-                yield s2_fname, {
-                    's2_img': s2_img,
-                    'label': label,
-                }
+                yield s2_fname, { 's2_img': s2_img, 'label': label }

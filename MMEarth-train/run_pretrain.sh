@@ -4,10 +4,10 @@ python  -m torch.distributed.launch --nproc_per_node=1 main_pretrain.py \
         --batch_size 256 \
         --update_freq 2 \
         --blr 1.5e-4 \
-        --epochs 200 \
+        --epochs 100 \
         --warmup_epochs 40 \
-        --data_dir ../../data/global-lr/data_1M_130_new \
-        --output_dir ../../data/global-lr/ConvNeXt-V2/results/pt-all_mod_atto \
+        --data_dir data_dir \
+        --output_dir output_dir \
         --wandb False \
         --wandb_run_name sanity_check_atto \
         --wandb_project global-lr \

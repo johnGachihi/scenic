@@ -21,7 +21,7 @@ import torchmetrics
 from geobench.dataset import SegmentationClasses
 from geobench.label import Classification, MultiLabelClassification
 from geobench.task import TaskSpecifications
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union, Any
 
 import helpers
 from helpers import adjust_learning_rate
@@ -36,7 +36,12 @@ def eval_metrics_generator(task_specs) -> List[torchmetrics.MetricCollection]:
         metric collection used during evaluation
     """
 
-    if task_specs.num_classes == 1:
+    if task_specs is None:
+        metrics = torchmetrics.MetricCollection({
+            "mIoU": torchmetrics.classification.JaccardIndex(task="multiclass", num_classes=2, average="macro", ignore_index=-1),
+            "IoU_per_class": torchmetrics.classification.MulticlassJaccardIndex(num_classes=2, average=None, ignore_index=-1),
+        })
+    elif task_specs.num_classes == 1:
         metrics: List[torchmetrics.MetricCollection] = {
             "agbd": torchmetrics.MetricCollection({"MSE": helpers.CustomMSE()}),
         }[task_specs.dataset]
@@ -56,7 +61,7 @@ def eval_metrics_generator(task_specs) -> List[torchmetrics.MetricCollection]:
 def train_one_epoch(
     model: torch.nn.Module,
     criterion: torch.nn.Module,
-    data_loader: ffcv.Loader,
+    data_loader: Any,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
     epoch: int,
@@ -80,9 +85,13 @@ def train_one_epoch(
     use_amp = args.use_amp
     optimizer.zero_grad()
 
-    for data_iter_step, (samples, targets, _, _) in enumerate(
+    for data_iter_step, dataloader_ret in enumerate(
         metric_logger.log_every(data_loader, print_freq, header)
     ):
+        if args.data_set == "sen1floods11":
+            samples, targets = dataloader_ret
+        else :
+            samples, targets, _, _ = dataloader_ret
         # we use a per iteration (instead of per epoch) lr scheduler
         if data_iter_step % update_freq == 0:
             adjust_learning_rate(
@@ -101,7 +110,7 @@ def train_one_epoch(
             enabled=use_amp
         ):
             output = model(samples)
-            if task.label_type == "segmentation":
+            if task is None or task.label_type == "segmentation":
                 # make output class the last dimension
                 output = output.permute(0, 2, 3, 1)
                 # assuming for segmentation we have the cross entropy loss, we need to convert the output to something of shape N, C
@@ -155,19 +164,25 @@ def train_one_epoch(
         if device.__str__ == "cuda":
             torch.cuda.synchronize()
 
-        if task.label_type == "segmentation":
+        if task is None or task.label_type == "segmentation":
             # for segmentation we calculate the mean intersection over union, hence the jaccard index
             output = output.permute(0, 3, 1, 2) # N, C, H, W
             output = torch.nn.functional.softmax(output, dim=1) # argmax already applied in the metric
             targets = targets.squeeze(1)
 
+        if task is None:
+            output = output.argmax(dim=1)
 
         score = metric(output, targets) # for bigearthnet, sigmoid is already applied in the metric
 
         metric_logger.update(loss=loss_value)
         # metric_logger.update(score=score)
         for key in score.keys():
-            metric_logger.meters[key].update(score[key].item())
+            if score[key].dim() > 0:  # 1-D array
+                for i, s in enumerate(score[key]):
+                    metric_logger.meters[f"{key}-{i}"].update(s.item())
+            else:
+                metric_logger.meters[key].update(score[key].item())
 
 
         min_lr = 10.0
@@ -195,7 +210,11 @@ def train_one_epoch(
     metric_values = metric.compute()
     return_dict = {k: meter.global_avg for k, meter in metric_logger.meters.items()} 
     for key in metric_values.keys(): # overwrite with computed values
-        return_dict[key] = metric_values[key].item()
+        if score[key].dim() > 0:  # 1-D array
+            for i, s in enumerate(score[key]):
+                metric_logger.meters[f"{key}-{i}"].update(s.item())
+        else:
+            return_dict[key] = metric_values[key].item()
 
     return return_dict
 
@@ -204,7 +223,9 @@ def train_one_epoch(
 def evaluate(data_loader, model, device, use_amp=False, args=None, task=None):
     data_set = args.data_set
     # for bigearthnet, we use BCE loss
-    if task.label_type == "multi_label_classification":
+    if task is None:
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+    elif task.label_type == "multi_label_classification":
         criterion = torch.nn.BCEWithLogitsLoss()
     elif (
         task.label_type == "segmentation"
@@ -242,7 +263,7 @@ def evaluate(data_loader, model, device, use_amp=False, args=None, task=None):
             if isinstance(output, dict):
                 output = output["logits"]
 
-            if task.label_type == "segmentation":
+            if task is None or task.label_type == "segmentation":
                 output = output.permute(0, 2, 3, 1) # N, H, W, C
 
                 output_tmp = output.contiguous().view(-1, output.size(3))
@@ -264,9 +285,7 @@ def evaluate(data_loader, model, device, use_amp=False, args=None, task=None):
             torch.cuda.synchronize()
 
     
-        if (
-            task.label_type == "segmentation"
-        ):
+        if task is None or task.label_type == "segmentation":
             output = output.permute(0, 3, 1, 2)
             output = torch.nn.functional.softmax(output, dim=1) # argmax already applied in the metric
             target = target.squeeze(1)
@@ -276,12 +295,20 @@ def evaluate(data_loader, model, device, use_amp=False, args=None, task=None):
         batch_size = images.shape[0] # this can be used on the metric_logger update function if needed.
         metric_logger.update(loss=loss.item())
         for key in score.keys():
-            metric_logger.meters[key].update(score[key].item())
+            if score[key].dim() > 0:  # 1-D array
+                for i, s in enumerate(score[key]):
+                    metric_logger.meters[f"{key}-{i}"].update(s.item())
+            else:
+                metric_logger.meters[key].update(score[key].item())
 
     test_metric = metric.compute()
     logging_text = "**** "
     for key in test_metric.keys():
-        logging_text += f"{key} {test_metric[key].item():.3f} "
+        if score[key].dim() > 0:  # 1-D array
+            for i, s in enumerate(score[key]):
+                logging_text += f"{key}-{i} {s.item():.3f} "
+        else:
+            logging_text += f"{key} {test_metric[key].item():.3f} "
 
     logging_text += f"loss {metric_logger.loss.global_avg:.3f}"
 
@@ -291,7 +318,11 @@ def evaluate(data_loader, model, device, use_amp=False, args=None, task=None):
     return_dict = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
     # we replace the metrics with metric.compute() values
     for key in test_metric.keys():
-        return_dict[key] = test_metric[key].item()
+        if score[key].dim() > 0:  # 1-D array
+            for i, s in enumerate(score[key]):
+                return_dict[f"{key}-{i}"] = s.item()
+        else:
+            return_dict[key] = test_metric[key].item()
 
     return return_dict
 

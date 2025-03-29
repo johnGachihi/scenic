@@ -2,7 +2,11 @@ import json
 from pathlib import Path
 from typing import Tuple
 
-import ffcv
+try:
+    import ffcv
+except ImportError:
+    print("FFCV not installed, please install it if you want to use the beton file format with ffcv")
+
 import geobench
 import numpy as np
 try:
