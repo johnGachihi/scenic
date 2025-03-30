@@ -14,8 +14,8 @@ python -m torch.distributed.launch --nproc_per_node=1 main_pretrain.py \
   --scale_max 1.0 \
   --epochs 500 \
   --warmup_epochs 10 \
-  --output_dir output_dir \
+  --output_dir output_dir_test \
   --log_dir log_dir \
   --num_workers 8 \
   --skip_knn_eval \
-  --wandb \
+#  --wandb \

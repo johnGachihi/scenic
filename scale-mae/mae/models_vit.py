@@ -93,6 +93,89 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
         x = self.head(x)
         return x
 
+class ViT_SimpleCNNDecoder(timm.models.vision_transformer.VisionTransformer):
+    def __init__(self, patch_size, embed_dim=768, in_chan=3, global_pool='', **kwargs):
+        super().__init__(embed_dim=embed_dim, **kwargs)
+
+        self.patch_embed = PatchEmbedUnSafe(
+            img_size=kwargs["img_size"],
+            patch_size=patch_size,
+            in_chans=in_chan,
+            embed_dim=embed_dim,
+        )
+
+        self.upsample_layers = nn.Sequential(
+            nn.ConvTranspose2d(384, 192, 3, 2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(192, 96, 3, 2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(96, 48, 3, 2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(48, 2, 3, 2, padding=1, output_padding=1),
+        )
+
+        self.head = nn.Conv2d(2, kwargs['num_classes'], kernel_size=1, stride=1)
+
+    def forward_features(self, x, input_res=None):
+        B, _, h, w = x.shape
+        x = self.patch_embed(x)
+        input_res = input_res.cpu()
+
+        num_patches = int(
+            (h * w) / (self.patch_embed.patch_size[0] * self.patch_embed.patch_size[1])
+        )
+
+        pos_embed = get_2d_sincos_pos_embed_with_resolution(
+            x.shape[-1],
+            int(num_patches ** 0.5),
+            input_res,
+            cls_token=False,
+            device=x.device,
+        )
+
+        x = x + pos_embed
+        x = self.pos_drop(x)
+
+        for blk in self.blocks:
+            x = blk(x)
+
+        x = self.norm(x)
+
+        return x
+
+    def forward(self, x, input_res=None):
+        x = self.forward_features(x, input_res=input_res)
+
+        x = x.permute(0, 2, 1)
+        x = x.view(x.shape[0], x.shape[1], 14, 14)
+
+        x = self.upsample_layers(x)
+        x = self.head(x)
+        return x
+
+def vit_simple_cnn_decoder_small_patch16(**kwargs):
+    model = ViT_SimpleCNNDecoder(
+        in_chan=12,
+        patch_size=16,
+        embed_dim=384,
+        depth=12,
+        num_heads=6,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs
+    )
+    return model
+
+def vit_small_patch16(**kwargs):
+    model = VisionTransformer(
+        patch_size=16,
+        embed_dim=384,
+        depth=12,
+        num_heads=6,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs
+    )
+    return model
 
 def vit_base_patch16(**kwargs):
     model = VisionTransformer(

@@ -21,6 +21,7 @@ import timm
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
+from torchinfo import summary
 
 import models_vit
 import util.lr_decay as lrd
@@ -29,7 +30,7 @@ from engine_finetune import evaluate, train_one_epoch
 from timm.data.mixup import Mixup
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from timm.models.layers import trunc_normal_
-from util.datasets import build_dataset
+from util.datasets import build_dataset, Sen1Floods11Dataset
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 from util.pos_embed import interpolate_pos_embed
 
@@ -59,6 +60,14 @@ def get_args_parser():
         type=str,
         metavar="MODEL",
         help="Name of model to train",
+    )
+
+    parser.add_argument(
+        "--dataset",
+        default="sen1floods11",
+        type=str,
+        metavar="DATASET",
+        help="Name of dataset to finetune",
     )
 
     parser.add_argument("--input_size", default=224, type=int, help="images input size")
@@ -212,7 +221,7 @@ def get_args_parser():
     )
     parser.add_argument(
         "--nb_classes",
-        default=1000,
+        default=2,
         type=int,
         help="number of the classification types",
     )
@@ -224,6 +233,9 @@ def get_args_parser():
     )
     parser.add_argument(
         "--log_dir", default="./output_dir", help="path where to tensorboard log"
+    )
+    parser.add_argument(
+        "--checkpoint_interval", default=50, type=int, help="How often to checkpoint"
     )
     parser.add_argument(
         "--device", default="cuda", help="device to use for training / testing"
@@ -254,11 +266,18 @@ def get_args_parser():
     parser.add_argument(
         "--world_size", default=1, type=int, help="number of distributed processes"
     )
-    parser.add_argument("--local_rank", default=-1, type=int)
+    parser.add_argument("--local-rank", default=-1, type=int)
     parser.add_argument("--dist_on_itp", action="store_true")
     parser.add_argument(
         "--dist_url", default="env://", help="url used to set up distributed training"
     )
+
+    parser.add_argument(
+        "--use_amp",
+        action="store_true",
+        help="Use mixed precision",
+    )
+    parser.set_defaults(use_amp=False)
 
     return parser
 
@@ -278,8 +297,10 @@ def main(args):
 
     cudnn.benchmark = True
 
-    dataset_train = build_dataset(is_train=True, args=args)
-    dataset_val = build_dataset(is_train=False, args=args)
+    # dataset_train = build_dataset(is_train=True, args=args)
+    # dataset_val = build_dataset(is_train=False, args=args)
+    dataset_train = Sen1Floods11Dataset(split="train")
+    dataset_val = Sen1Floods11Dataset(split="val")
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -316,7 +337,7 @@ def main(args):
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_mem,
-        drop_last=True,
+        drop_last=False,
     )
 
     data_loader_val = torch.utils.data.DataLoader(
@@ -347,10 +368,14 @@ def main(args):
         num_classes=args.nb_classes,
         drop_path_rate=args.drop_path,
         global_pool=args.global_pool,
+        img_size=args.input_size
     )
 
+    sample, _ = next(iter(data_loader_train))
+    summary(model, input_data=(sample, torch.ones(sample.shape[0])))
+
     if args.finetune and not args.eval:
-        checkpoint = torch.load(args.finetune, map_location="cpu")
+        checkpoint = torch.load(args.finetune, map_location="cpu", weights_only=False)
 
         print("Load pre-trained checkpoint from: %s" % args.finetune)
         checkpoint_model = checkpoint["model"]
@@ -363,6 +388,12 @@ def main(args):
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
 
+        checkpoint_model_keys = list(checkpoint_model.keys())
+        for k in checkpoint_model_keys:
+            if "patch_embed" in k:
+                print(f"Removing key {k} from pretrained checkpoint")
+                del checkpoint_model[k]
+
         # interpolate position embedding
         interpolate_pos_embed(model, checkpoint_model)
 
@@ -370,15 +401,17 @@ def main(args):
         msg = model.load_state_dict(checkpoint_model, strict=False)
         print(msg)
 
-        if args.global_pool:
+        """if args.global_pool:
             assert set(msg.missing_keys) == {
                 "head.weight",
                 "head.bias",
                 "fc_norm.weight",
                 "fc_norm.bias",
+                "patch_embed.proj.weight",
+                "patch_embed.proj.bias"
             }
         else:
-            assert set(msg.missing_keys) == {"head.weight", "head.bias"}
+            assert set(msg.missing_keys) == {"head.weight", "head.bias"}"""
 
         # manually initialize fc layer
         trunc_normal_(model.head.weight, std=2e-5)
@@ -394,9 +427,9 @@ def main(args):
     eff_batch_size = args.batch_size * args.accum_iter * misc.get_world_size()
 
     if args.lr is None:  # only base_lr is specified
-        args.lr = args.blr * eff_batch_size / 256
+        args.lr = args.blr * eff_batch_size / 1024
 
-    print("base lr: %.2e" % (args.lr * 256 / eff_batch_size))
+    print("base lr: %.2e" % (args.lr * 1024 / eff_batch_size))
     print("actual lr: %.2e" % args.lr)
 
     print("accumulate grad iterations: %d" % args.accum_iter)
@@ -424,7 +457,7 @@ def main(args):
     elif args.smoothing > 0.0:
         criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
-        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
 
     print("criterion = %s" % str(criterion))
 
@@ -436,7 +469,7 @@ def main(args):
     )
 
     if args.eval:
-        test_stats = evaluate(data_loader_val, model, device)
+        test_stats = evaluate(data_loader_val, model, device, args=args)
         print(
             f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%"
         )
@@ -461,7 +494,9 @@ def main(args):
             log_writer=log_writer,
             args=args,
         )
-        if args.output_dir:
+        if args.output_dir and (
+            epoch % args.checkpoint_interval == 0 or epoch + 1 == args.epochs
+        ):
             misc.save_model(
                 args=args,
                 model=model,
@@ -471,17 +506,31 @@ def main(args):
                 epoch=epoch,
             )
 
-        test_stats = evaluate(data_loader_val, model, device)
-        print(
-            f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%"
-        )
-        max_accuracy = max(max_accuracy, test_stats["acc1"])
-        print(f"Max accuracy: {max_accuracy:.2f}%")
+        test_stats = evaluate(data_loader_val, model, device, args=args)
 
-        if log_writer is not None:
-            log_writer.add_scalar("perf/test_acc1", test_stats["acc1"], epoch)
-            log_writer.add_scalar("perf/test_acc5", test_stats["acc5"], epoch)
-            log_writer.add_scalar("perf/test_loss", test_stats["loss"], epoch)
+        if args.dataset == "sen1floods11":
+            logging_text = "Metric: "
+            for k, v in test_stats.items():
+                if k != "loss":
+                    logging_text += f"{k} - {v:.3f} "
+                    metric_key = k
+
+            print(logging_text)
+
+            if log_writer is not None:
+                for key in test_stats.keys():
+                    log_writer.add_scalar(f"perf/val_{key}", test_stats[key], epoch)
+        else:
+            print(
+                f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%"
+            )
+            max_accuracy = max(max_accuracy, test_stats["acc1"])
+            print(f"Max accuracy: {max_accuracy:.2f}%")
+
+            if log_writer is not None:
+                log_writer.add_scalar("perf/test_acc1", test_stats["acc1"], epoch)
+                log_writer.add_scalar("perf/test_acc5", test_stats["acc5"], epoch)
+                log_writer.add_scalar("perf/test_loss", test_stats["loss"], epoch)
 
         log_stats = {
             **{f"train_{k}": v for k, v in train_stats.items()},
