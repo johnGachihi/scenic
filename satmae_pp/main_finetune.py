@@ -93,7 +93,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='./output_dir/checkpoint-50.pth', help='finetune from checkpoint')
+    parser.add_argument('--finetune', default=None, help='finetune from checkpoint')
     parser.add_argument('--global_pool', action='store_true')
     parser.set_defaults(global_pool=True)
     parser.add_argument('--cls_token', action='store_false', dest='global_pool',
