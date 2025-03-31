@@ -196,7 +196,7 @@ def main(args):
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_mem,
-        drop_last=True,
+        drop_last=False,
     )
 
     data_loader_val = torch.utils.data.DataLoader(
@@ -313,7 +313,7 @@ def main(args):
     elif args.smoothing > 0.:
         criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
-        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
 
     print("criterion = %s" % str(criterion))
 
@@ -328,7 +328,7 @@ def main(args):
     '''
 
     if args.eval:
-        test_stats = evaluate(data_loader_val, model, device)
+        test_stats = evaluate(data_loader_val, model, device, args)
         print(f"Evaluation on {len(dataset_val)} test images- acc1: {test_stats['acc1']:.2f}%, "
               f"acc5: {test_stats['acc5']:.2f}%")
         exit(0)
@@ -353,16 +353,28 @@ def main(args):
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
 
-        test_stats = evaluate(data_loader_val, model, device)
+        test_stats = evaluate(data_loader_val, model, device, args)
 
-        print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
-        max_accuracy = max(max_accuracy, test_stats["acc1"])
-        print(f'Max accuracy: {max_accuracy:.2f}%')
+        if args.dataset_type == "sen1floods11":
+            logging_text = "Metric: "
+            for k, v in test_stats.items():
+                if k != "loss":
+                    logging_text += f"{k} - {v:.3f} "
 
-        if log_writer is not None:
-            log_writer.add_scalar('perf/test_acc1', test_stats['acc1'], epoch)
-            log_writer.add_scalar('perf/test_acc5', test_stats['acc5'], epoch)
-            log_writer.add_scalar('perf/test_loss', test_stats['loss'], epoch)
+            print(logging_text)
+
+            if log_writer is not None:
+                for key in test_stats.keys():
+                    log_writer.add_scalar(f"perf/val_{key}", test_stats[key], epoch)
+        else:
+            print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
+            max_accuracy = max(max_accuracy, test_stats["acc1"])
+            print(f'Max accuracy: {max_accuracy:.2f}%')
+
+            if log_writer is not None:
+                log_writer.add_scalar('perf/test_acc1', test_stats['acc1'], epoch)
+                log_writer.add_scalar('perf/test_acc5', test_stats['acc5'], epoch)
+                log_writer.add_scalar('perf/test_loss', test_stats['loss'], epoch)
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      **{f'test_{k}': v for k, v in test_stats.items()},
