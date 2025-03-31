@@ -3,13 +3,12 @@
 # MAE: https://github.com/facebookresearch/mae
 # timm: https://github.com/rwightman/pytorch-image-models/tree/master/timm
 # --------------------------------------------------------
-
 from functools import partial
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from timm.models.vision_transformer import VisionTransformer, PatchEmbed
 from util.pos_embed import get_2d_sincos_pos_embed, get_1d_sincos_pos_embed_from_grid
+from models_vit_segmentation_group_channels import SimpleCNNSegmentationGroupChannelsVisionTransformer
 
 
 class GroupChannelsVisionTransformer(VisionTransformer):
@@ -92,6 +91,13 @@ class GroupChannelsVisionTransformer(VisionTransformer):
             outcome = x[:, 0]
 
         return outcome
+
+
+def vit_small_simple_cnn_segmentation(**kwargs):
+    model = SimpleCNNSegmentationGroupChannelsVisionTransformer(channel_embed=128, embed_dim=384, depth=12,
+                                           num_heads=6, mlp_ratio=4, qkv_bias=True,
+                                           norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+    return model
 
 
 def vit_base_patch16(**kwargs):

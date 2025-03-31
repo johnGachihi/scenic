@@ -14,6 +14,7 @@ from pathlib import Path
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
+from torchinfo import summary
 
 import timm
 assert timm.__version__ >= "0.3.2" 
@@ -26,6 +27,7 @@ import util.misc as misc
 from util.datasets_finetune import build_fmow_dataset
 from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
+from util.sen1floods11_dataset import Sen1Floods11Dataset
 
 import models_vit
 import models_vit_group_channels
@@ -103,7 +105,7 @@ def get_args_parser():
                         help='Train .csv path')
     parser.add_argument('--test_path', default='dataset/fmow_sentinel/val.csv', type=str,
                         help='Test .csv path')
-    parser.add_argument('--dataset_type', default='sentinel', choices=['rgb', 'sentinel', 'euro_sat', 'resisc', 'ucmerced'],
+    parser.add_argument('--dataset_type', default='sentinel', choices=['sen1floods11', 'rgb', 'sentinel', 'euro_sat', 'resisc', 'ucmerced'],
                         help='Whether to use fmow rgb, sentinel, or other dataset.')
     parser.add_argument('--masked_bands', default=None, nargs='+', type=int,
                         help='Sequence of band indices to mask (with mean val) in sentinel dataset')
@@ -125,7 +127,7 @@ def get_args_parser():
     parser.add_argument('--eval', action='store_true', help='Perform evaluation only')
     parser.add_argument('--dist_eval', action='store_true', default=False,
                         help='Enabling distributed evaluation (recommended during training for faster monitor')
-    parser.add_argument('--num_workers', default=16, type=int)
+    parser.add_argument('--num_workers', default=8, type=int)
     parser.add_argument('--pin_mem', action='store_true',
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no_pin_mem', action='store_false', dest='pin_mem')
@@ -133,7 +135,7 @@ def get_args_parser():
 
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
-    parser.add_argument('--local_rank', default=os.getenv('LOCAL_RANK', 0), type=int)
+    parser.add_argument('--local-rank', default=os.getenv('LOCAL_RANK', 0), type=int)
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
 
@@ -155,8 +157,12 @@ def main(args):
 
     cudnn.benchmark = True
 
-    dataset_train = build_fmow_dataset(is_train=True, args=args)
-    dataset_val = build_fmow_dataset(is_train=False, args=args)
+    if args.dataset_type == "sen1floods11":
+        dataset_train = Sen1Floods11Dataset(split="train", args=args)
+        dataset_val = Sen1Floods11Dataset(split="val", args=args)
+    else:
+        dataset_train = build_fmow_dataset(is_train=True, args=args)
+        dataset_val = build_fmow_dataset(is_train=False, args=args)
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -230,27 +236,28 @@ def main(args):
             patch_size=args.patch_size, img_size=args.input_size, in_chans=dataset_train.in_c,
             num_classes=args.nb_classes, drop_path_rate=args.drop_path, global_pool=args.global_pool,
         )
+
+    sample = dataset_train[0]['img']
+    summary(model, input_size=(args.batch_size,) + sample.shape)
     
     if args.finetune and not args.eval:
-        checkpoint = torch.load(args.finetune, map_location='cpu')
+        checkpoint = torch.load(args.finetune, map_location='cpu', weights_only=False)
 
         print("Load pre-trained checkpoint from: %s" % args.finetune)
         checkpoint_model = checkpoint['model']
         state_dict = model.state_dict()
 
-        # if 'patch_embed.proj.weight' in checkpoint_model and 'patch_embed.proj.weight' in state_dict:
-        #     ckpt_patch_embed_weight = checkpoint_model['patch_embed.proj.weight']
-        #     model_patch_embed_weight = state_dict['patch_embed.proj.weight']
-        #     if ckpt_patch_embed_weight.shape[1] != model_patch_embed_weight.shape[1]:
-        #         print('Using 3 channels of ckpt patch_embed')
-        #         model.patch_embed.proj.weight.data[:, :3, :, :] = ckpt_patch_embed_weight.data[:, :3, :, :]
-
         # TODO: Do something smarter?
-        for k in ['pos_embed', 'patch_embed.proj.weight', 'patch_embed.proj.bias', 'head.weight', 'head.bias']:
+        for k in ['head.weight', 'head.bias']:
             if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
-        
+        for i in range(len(args.grouped_bands)):
+            weight_k = f'patch_embed.{i}.proj.weight'
+            if weight_k in checkpoint_model and checkpoint_model[weight_k].shape != state_dict[weight_k].shape:
+                print(f"Removing key {weight_k} from pretrained checkpoint")
+                del checkpoint_model[weight_k]
+
         # interpolate position embedding
         interpolate_pos_embed(model, checkpoint_model)
 

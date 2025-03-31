@@ -42,7 +42,7 @@ class MMearthSen2Dataset(torch.utils.data.Dataset):
       tv.transforms.RandomHorizontalFlip()
     ])
 
-    self.in_c = 12  # Sen2 bands without B10:Cirrus
+    self.in_c = 12  # My MMearth dataset excludes Sentinel 2's B10:Cirrus
     if self.dropped_bands is not None:
       self.in_c = self.in_c - len(self.dropped_bands)
 
