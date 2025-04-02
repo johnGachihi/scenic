@@ -14,6 +14,7 @@ MODALITIES = {
         "B12",
     ],
     "sentinel1": "all",
+    "aster": ["elevation"],
 }
 
 MODALITIES_FULL = {

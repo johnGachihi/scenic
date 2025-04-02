@@ -11,11 +11,7 @@ import numpy as np
 
 
 class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
-    VERSION = tfds.core.Version('0.0.5')
-
-    # def __init__(self, modalities: dict, **kwargs):
-    #     super().__init__(**kwargs)
-    #     self.modalities = modalities
+    VERSION = tfds.core.Version('0.0.6')
 
     def _info(self):
         return tfds.core.DatasetInfo(
@@ -31,14 +27,18 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
                     dtype=np.dtype("float32"),
                     encoding="zlib"
                 ),
+                'dem': tfds.features.Tensor(
+                    shape=(1, 64, 64),
+                    dtype=np.dtype("int16"),
+                    encoding="zlib"
+                ),
                 'id': tfds.features.Text(),
                 'sentinel2_type': tfds.features.Text(),  # l1c or l2a
             }),
-            alternative_file_formats=['array_record']
         )
 
     def _split_generators(self, dl_manager):
-        data_root = Path('/home/admin/john/data/mmearth')
+        data_root = Path('/home/user/data/mmearth64/data_1M_v001_64')
 
         # Full data
         data_path = data_root / 'data_1M_v001_64.h5'
@@ -85,7 +85,10 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
 
                 if modality == "sentinel2":
                     data = data.astype(np.dtype("uint16"))
-                else:
+                elif modality == "aster":
+                    data = data.astype(np.dtype("int16"))
+                    modality = "dem"
+                elif modality == "sentinel1":
                     data = data.astype(np.dtype("float32"))
 
                 return_dict[modality] = data
