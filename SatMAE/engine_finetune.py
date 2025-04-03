@@ -62,7 +62,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             outputs = model(samples)
-            if args.dataset_type == "sen1floods11":
+            if args.dataset_type in ["sen1floods11", "spacenet1"]:
                 outputs = outputs.permute(0, 2, 3, 1)  # channel last
                 output_tmp = outputs.contiguous().view(-1, outputs.size(3))
 
@@ -100,7 +100,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         metric_logger.update(lr=max_lr)
 
-        if args.dataset_type == "sen1floods11":
+        if args.dataset_type in ["sen1floods11", "spacenet1"]:
             outputs = outputs.permute(0, 3, 1, 2)  # channel first
             outputs = torch.nn.functional.softmax(outputs, dim=1)
             outputs = outputs.argmax(dim=1)
@@ -244,7 +244,7 @@ def evaluate(data_loader, model, device, args):
         # compute output
         with torch.cuda.amp.autocast():
             output = model(images)
-            if args.dataset_type == "sen1floods11":
+            if args.dataset_type in ["sen1floods11", "spacenet1"]:
                 output = output.permute(0, 2, 3, 1)
                 output_tmp = output.contiguous().view(-1, output.size(3))
                 target_tmp = target.permute(0, 2, 3, 1)
@@ -260,7 +260,7 @@ def evaluate(data_loader, model, device, args):
         batch_size = images.shape[0]
         metric_logger.update(loss=loss.item())
 
-        if args.dataset_type == "sen1floods11":
+        if args.dataset_type in ["sen1floods11", "spacenet1"]:
             output = output.permute(0, 3, 1, 2)
             output = torch.nn.functional.softmax(output, dim=1)
             target = target.squeeze(1)
@@ -279,7 +279,7 @@ def evaluate(data_loader, model, device, args):
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
 
-    if args.dataset_type == "sen1floods11":
+    if args.dataset_type in ["sen1floods11", "spacenet1"]:
         test_metric = metric.compute()
 
         logging_text = " "

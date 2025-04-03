@@ -27,6 +27,7 @@ import util.lr_decay as lrd
 import util.misc as misc
 from util.datasets import build_fmow_dataset
 from util.sen1floods11_dataset import Sen1Floods11Dataset
+from util.spacenet_dataset import Spacenet1Dataset
 from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
@@ -128,7 +129,7 @@ def get_args_parser():
                         help='Train .csv path')
     parser.add_argument('--test_path', default='/home/val_62classes.csv', type=str,
                         help='Test .csv path')
-    parser.add_argument('--dataset_type', default='rgb', choices=['sen1floods11', 'rgb', 'temporal', 'sentinel', 'euro_sat', 'naip'],
+    parser.add_argument('--dataset_type', default='rgb', choices=['sen1floods11', 'spacenet1', 'rgb', 'temporal', 'sentinel', 'euro_sat', 'naip'],
                         help='Whether to use fmow rgb, sentinel, or other dataset.')
     parser.add_argument('--masked_bands', default=None, nargs='+', type=int,
                         help='Sequence of band indices to mask (with mean val) in sentinel dataset')
@@ -194,6 +195,9 @@ def main(args):
     if args.dataset_type == "sen1floods11":
         dataset_train = Sen1Floods11Dataset(split="train", args=args)
         dataset_val = Sen1Floods11Dataset(split="val", args=args)
+    elif args.dataset_type == "spacenet1":
+        dataset_train = Spacenet1Dataset(split="train", args=args)
+        dataset_val = Spacenet1Dataset(split="val", args=args)
     else:
         dataset_train = build_fmow_dataset(is_train=True, args=args)
         dataset_val = build_fmow_dataset(is_train=False, args=args)
@@ -230,7 +234,7 @@ def main(args):
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_mem,
-        drop_last=True,
+        drop_last=False,
     )
 
     data_loader_val = torch.utils.data.DataLoader(
@@ -374,7 +378,7 @@ def main(args):
         if args.model_type == 'temporal':
             test_stats = evaluate_temporal(data_loader_val, model, device)
         else:
-            test_stats = evaluate(data_loader_val, model, device)
+            test_stats = evaluate(data_loader_val, model, device, args)
         print(f"Evaluation on {len(dataset_val)} test images- acc1: {test_stats['acc1']:.2f}%, "
               f"acc5: {test_stats['acc5']:.2f}%")
         exit(0)
@@ -411,16 +415,28 @@ def main(args):
         if args.model_type == 'temporal':
             test_stats = evaluate_temporal(data_loader_val, model, device)
         else:
-            test_stats = evaluate(data_loader_val, model, device)
+            test_stats = evaluate(data_loader_val, model, device, args)
 
-        print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
-        max_accuracy = max(max_accuracy, test_stats["acc1"])
-        print(f'Max accuracy: {max_accuracy:.2f}%')
+        if args.dataset_type in ["sen1floods11", "spacenet1"]:
+            logging_text = "Metric: "
+            for k, v in test_stats.items():
+                if k != "loss":
+                    logging_text += f"{k} - {v:.3f} "
 
-        if log_writer is not None:
-            log_writer.add_scalar('perf/test_acc1', test_stats['acc1'], epoch)
-            log_writer.add_scalar('perf/test_acc5', test_stats['acc5'], epoch)
-            log_writer.add_scalar('perf/test_loss', test_stats['loss'], epoch)
+            print(logging_text)
+
+            if log_writer is not None:
+                for key in test_stats.keys():
+                    log_writer.add_scalar(f"perf/val_{key}", test_stats[key], epoch)
+        else:
+            print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
+            max_accuracy = max(max_accuracy, test_stats["acc1"])
+            print(f'Max accuracy: {max_accuracy:.2f}%')
+
+            if log_writer is not None:
+                log_writer.add_scalar('perf/test_acc1', test_stats['acc1'], epoch)
+                log_writer.add_scalar('perf/test_acc5', test_stats['acc5'], epoch)
+                log_writer.add_scalar('perf/test_loss', test_stats['loss'], epoch)
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      **{f'test_{k}': v for k, v in test_stats.items()},

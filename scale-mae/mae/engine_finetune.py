@@ -55,7 +55,7 @@ def train_one_epoch(
     for data_iter_step, ret_dataloader in enumerate(
         metric_logger.log_every(data_loader, print_freq, header)
     ):
-        if args.dataset == "sen1floods11":
+        if args.dataset in ["sen1floods11", "spacenet1"]:
             samples, labels = ret_dataloader
             res = torch.ones((samples.shape[0],)).to(device)
         else:
@@ -75,7 +75,7 @@ def train_one_epoch(
 
         with torch.amp.autocast("cuda", enabled=args.use_amp):
             outputs = model(samples, input_res=res)
-            if args.dataset == "sen1floods11":
+            if args.dataset in ["sen1floods11", "spacenet1"]:
                 outputs = outputs.permute(0, 2, 3, 1)  # channel last
                 output_tmp = outputs.contiguous().view(-1, outputs.size(3))
 
@@ -117,7 +117,7 @@ def train_one_epoch(
 
         torch.cuda.synchronize()
 
-        if args.dataset == "sen1floods11":
+        if args.dataset in ["sen1floods11", "spacenet1"]:
             outputs = outputs.permute(0, 3, 1, 2)  # channel first
             outputs = torch.nn.functional.softmax(outputs, dim=1)
             outputs = outputs.argmax(dim=1)
@@ -199,7 +199,7 @@ def evaluate(
                 images,
                 input_res=torch.ones(len(images)).float().to(images.device) * gsd_ratio,
             )
-            if args.dataset == "sen1floods11":
+            if args.dataset in ["sen1floods11", "spacenet1"]:
                 output = output.permute(0, 2, 3, 1)
                 output_tmp = output.contiguous().view(-1, output.size(3))
                 target_tmp = target.permute(0, 2, 3, 1)
@@ -213,7 +213,7 @@ def evaluate(
             loss = criterion(output_tmp, target_tmp)
 
 
-        if args.dataset == "sen1floods11":
+        if args.dataset in ["sen1floods11", "spacenet1"]:
             output = output.permute(0, 3, 1, 2)
             output = torch.nn.functional.softmax(output, dim=1)
             target = target.squeeze(1)

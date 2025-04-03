@@ -28,6 +28,7 @@ from util.datasets_finetune import build_fmow_dataset
 from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 from util.sen1floods11_dataset import Sen1Floods11Dataset
+from util.spacenet_dataset import Spacenet1Dataset
 
 import models_vit
 import models_vit_group_channels
@@ -105,7 +106,7 @@ def get_args_parser():
                         help='Train .csv path')
     parser.add_argument('--test_path', default='dataset/fmow_sentinel/val.csv', type=str,
                         help='Test .csv path')
-    parser.add_argument('--dataset_type', default='sentinel', choices=['sen1floods11', 'rgb', 'sentinel', 'euro_sat', 'resisc', 'ucmerced'],
+    parser.add_argument('--dataset_type', default='sentinel', choices=['sen1floods11', 'spacenet1', 'rgb', 'sentinel', 'euro_sat', 'resisc', 'ucmerced'],
                         help='Whether to use fmow rgb, sentinel, or other dataset.')
     parser.add_argument('--masked_bands', default=None, nargs='+', type=int,
                         help='Sequence of band indices to mask (with mean val) in sentinel dataset')
@@ -160,6 +161,9 @@ def main(args):
     if args.dataset_type == "sen1floods11":
         dataset_train = Sen1Floods11Dataset(split="train", args=args)
         dataset_val = Sen1Floods11Dataset(split="val", args=args)
+    elif args.dataset_type == "spacenet1":
+        dataset_train = Spacenet1Dataset(split="train", args=args)
+        dataset_val = Spacenet1Dataset(split="val", args=args)
     else:
         dataset_train = build_fmow_dataset(is_train=True, args=args)
         dataset_val = build_fmow_dataset(is_train=False, args=args)
@@ -355,7 +359,7 @@ def main(args):
 
         test_stats = evaluate(data_loader_val, model, device, args)
 
-        if args.dataset_type == "sen1floods11":
+        if args.dataset_type in ["sen1floods11", "spacenet1"]:
             logging_text = "Metric: "
             for k, v in test_stats.items():
                 if k != "loss":

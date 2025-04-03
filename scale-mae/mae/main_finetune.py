@@ -30,7 +30,7 @@ from engine_finetune import evaluate, train_one_epoch
 from timm.data.mixup import Mixup
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from timm.models.layers import trunc_normal_
-from util.datasets import build_dataset, Sen1Floods11Dataset
+from util.datasets import build_dataset, Sen1Floods11Dataset, Spacenet1Dataset
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 from util.pos_embed import interpolate_pos_embed
 
@@ -71,6 +71,7 @@ def get_args_parser():
     )
 
     parser.add_argument("--input_size", default=224, type=int, help="images input size")
+    parser.add_argument("--patch_size", default=16, type=int, help="patch size")
 
     parser.add_argument(
         "--drop_path",
@@ -299,8 +300,12 @@ def main(args):
 
     # dataset_train = build_dataset(is_train=True, args=args)
     # dataset_val = build_dataset(is_train=False, args=args)
-    dataset_train = Sen1Floods11Dataset(split="train")
-    dataset_val = Sen1Floods11Dataset(split="val")
+    if args.dataset == "sen1floods11":
+        dataset_train = Sen1Floods11Dataset(split="train")
+        dataset_val = Sen1Floods11Dataset(split="val")
+    else:
+        dataset_train = Spacenet1Dataset(split="train")
+        dataset_val = Spacenet1Dataset(split="val")
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -364,14 +369,18 @@ def main(args):
             num_classes=args.nb_classes,
         )
 
+    sample, _ = next(iter(data_loader_train))
+    in_chan = sample.shape[1]
+
     model = models_vit.__dict__[args.model](
         num_classes=args.nb_classes,
         drop_path_rate=args.drop_path,
         global_pool=args.global_pool,
-        img_size=args.input_size
+        img_size=args.input_size,
+        patch_size=args.patch_size,
+        in_chan=in_chan,
     )
 
-    sample, _ = next(iter(data_loader_train))
     summary(model, input_data=(sample, torch.ones(sample.shape[0])))
 
     if args.finetune and not args.eval:
@@ -508,7 +517,7 @@ def main(args):
 
         test_stats = evaluate(data_loader_val, model, device, args=args)
 
-        if args.dataset == "sen1floods11":
+        if args.dataset in ["sen1floods11", "spacenet1"]:
             logging_text = "Metric: "
             for k, v in test_stats.items():
                 if k != "loss":
