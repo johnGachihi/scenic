@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import timm
 
-assert timm.__version__ == "0.3.2"  # version check
+# assert timm.__version__ == "0.3.2"  # version check
 from timm.models.layers import trunc_normal_
 from timm.data.mixup import Mixup
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
@@ -26,6 +26,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 import util.lr_decay as lrd
 import util.misc as misc
 from util.datasets import build_fmow_dataset
+from util.sen1floods11_dataset import Sen1Floods11Dataset
 from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
@@ -127,7 +128,7 @@ def get_args_parser():
                         help='Train .csv path')
     parser.add_argument('--test_path', default='/home/val_62classes.csv', type=str,
                         help='Test .csv path')
-    parser.add_argument('--dataset_type', default='rgb', choices=['rgb', 'temporal', 'sentinel', 'euro_sat', 'naip'],
+    parser.add_argument('--dataset_type', default='rgb', choices=['sen1floods11', 'rgb', 'temporal', 'sentinel', 'euro_sat', 'naip'],
                         help='Whether to use fmow rgb, sentinel, or other dataset.')
     parser.add_argument('--masked_bands', default=None, nargs='+', type=int,
                         help='Sequence of band indices to mask (with mean val) in sentinel dataset')
@@ -167,7 +168,7 @@ def get_args_parser():
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,
                         help='number of distributed processes')
-    parser.add_argument('--local_rank', default=os.getenv('LOCAL_RANK', 0), type=int)
+    parser.add_argument('--local_rank', '--local-rank', default=os.getenv('LOCAL_RANK', 0), type=int)
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument('--dist_url', default='env://',
                         help='url used to set up distributed training')
@@ -190,8 +191,12 @@ def main(args):
 
     cudnn.benchmark = True
 
-    dataset_train = build_fmow_dataset(is_train=True, args=args)
-    dataset_val = build_fmow_dataset(is_train=False, args=args)
+    if args.dataset_type == "sen1floods11":
+        dataset_train = Sen1Floods11Dataset(split="train", args=args)
+        dataset_val = Sen1Floods11Dataset(split="val", args=args)
+    else:
+        dataset_train = build_fmow_dataset(is_train=True, args=args)
+        dataset_val = build_fmow_dataset(is_train=False, args=args)
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -286,10 +291,15 @@ def main(args):
         #         model.patch_embed.proj.weight.data[:, :3, :, :] = ckpt_patch_embed_weight.data[:, :3, :, :]
 
         # TODO: Do something smarter?
-        for k in ['pos_embed', 'patch_embed.proj.weight', 'patch_embed.proj.bias', 'head.weight', 'head.bias']:
+        for k in ['head.weight', 'head.bias']:
             if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
+        for i in range(len(args.grouped_bands)):
+            weight_k = f'patch_embed.{i}.proj.weight'
+            if weight_k in checkpoint_model and checkpoint_model[weight_k].shape != state_dict[weight_k].shape:
+                print(f"Removing key {weight_k} from pretrained checkpoint")
+                del checkpoint_model[weight_k]
 
         # interpolate position embedding
         interpolate_pos_embed(model, checkpoint_model)
@@ -348,7 +358,7 @@ def main(args):
     elif args.smoothing > 0.:
         criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
-        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
 
     print("criterion = %s" % str(criterion))
 
@@ -356,7 +366,7 @@ def main(args):
 
     # Set up wandb
     if global_rank == 0 and args.wandb is not None:
-        wandb.init(project=args.wandb, entity="mae-sentinel")
+        wandb.init(project=args.wandb, entity="gachihi")
         wandb.config.update(args)
         wandb.watch(model)
 

@@ -39,7 +39,7 @@ def get_args_parser():
     # Model parameters
     parser.add_argument('--model_type', default=None, choices=['group_c', 'temporal', 'vanilla'],
                         help='Use channel model')
-    parser.add_argument('--model', default='mae_vit_large_patch16', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='mae_vit_small', type=str, metavar='MODEL',
                         help='Name of model to train')
 
     parser.add_argument('--input_size', default=224, type=int,
@@ -208,7 +208,7 @@ def main(args):
 
     # Set up wandb
     if global_rank == 0 and args.wandb is not None:
-        wandb.init(project=args.wandb, entity="gachihi")
+        wandb.init(project=args.wandb, entity="gachihi", name="satmae_small")
         wandb.config.update(args)
         wandb.watch(model)
 
@@ -233,7 +233,7 @@ def main(args):
                 args=args
             )
 
-        if args.output_dir and (epoch % 5 == 0 or epoch + 1 == args.epochs):
+        if args.output_dir and (epoch % 2 == 0 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)

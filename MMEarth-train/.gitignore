@@ -21,3 +21,5 @@ test_scores.zip
 latex_tables.py
 .pytest_cache/
 test_scores_tiny/
+output_dir*
+log_dir*

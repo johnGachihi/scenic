@@ -13,6 +13,8 @@ import torch
 import wandb
 import torch.nn.functional as F
 
+import torchmetrics
+
 from timm.data import Mixup
 from timm.utils import accuracy
 
@@ -26,6 +28,14 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     mixup_fn: Optional[Mixup] = None, log_writer=None,
                     args=None):
     model.train(True)
+
+    metric = torchmetrics.MetricCollection({
+        "mIoU": torchmetrics.classification.JaccardIndex(
+            task="multiclass", num_classes=2, average="macro", ignore_index=-1),
+        "IoU_per_class": torchmetrics.classification.MulticlassJaccardIndex(
+            num_classes=2, average=None, ignore_index=-1),
+    }).to(device)
+
     metric_logger = misc.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', misc.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Epoch: [{}]'.format(epoch)
@@ -52,7 +62,19 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             outputs = model(samples)
-            loss = criterion(outputs, targets)
+            if args.dataset_type == "sen1floods11":
+                outputs = outputs.permute(0, 2, 3, 1)  # channel last
+                output_tmp = outputs.contiguous().view(-1, outputs.size(3))
+
+                target_tmp = targets.permute(0, 2, 3, 1)
+                target_tmp = target_tmp.contiguous().view(-1, target_tmp.size(3))
+                target_tmp = target_tmp.squeeze(1)  # cross entropy loss expects a 1D tensor
+                target_tmp = target_tmp.long()
+            else:
+                output_tmp = outputs
+                target_tmp = targets
+
+            loss = criterion(output_tmp, target_tmp)
 
         loss_value = loss.item()
 
@@ -77,6 +99,20 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             max_lr = max(max_lr, group["lr"])
 
         metric_logger.update(lr=max_lr)
+
+        if args.dataset_type == "sen1floods11":
+            outputs = outputs.permute(0, 3, 1, 2)  # channel first
+            outputs = torch.nn.functional.softmax(outputs, dim=1)
+            outputs = outputs.argmax(dim=1)
+            targets = targets.squeeze(1)
+            score = metric(outputs, targets)
+
+            for key in score.keys():
+                if score[key].dim() > 0:  # 1-D array
+                    for i, s in enumerate(score[key]):
+                        metric_logger.meters[f"{key}-{i}"].update(s.item())
+                else:
+                    metric_logger.meters[key].update(score[key].item())
 
         loss_value_reduce = misc.all_reduce_mean(loss_value)
         if log_writer is not None and (data_iter_step + 1) % accum_iter == 0:
@@ -182,8 +218,15 @@ def train_one_epoch_temporal(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 @torch.no_grad()
-def evaluate(data_loader, model, device):
-    criterion = torch.nn.CrossEntropyLoss()
+def evaluate(data_loader, model, device, args):
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+
+    metric = torchmetrics.MetricCollection({
+        "mIoU": torchmetrics.classification.JaccardIndex(
+            task="multiclass", num_classes=2, average="macro", ignore_index=-1),
+        "IoU_per_class": torchmetrics.classification.MulticlassJaccardIndex(
+            num_classes=2, average=None, ignore_index=-1),
+    }).to(device)
 
     metric_logger = misc.MetricLogger(delimiter="  ")
     header = 'Test:'
@@ -194,7 +237,6 @@ def evaluate(data_loader, model, device):
     for batch in metric_logger.log_every(data_loader, 10, header):
         images = batch[0]
         target = batch[-1]
-        # print('images and targets')
         images = images.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
 
@@ -202,21 +244,69 @@ def evaluate(data_loader, model, device):
         # compute output
         with torch.cuda.amp.autocast():
             output = model(images)
-            loss = criterion(output, target)
+            if args.dataset_type == "sen1floods11":
+                output = output.permute(0, 2, 3, 1)
+                output_tmp = output.contiguous().view(-1, output.size(3))
+                target_tmp = target.permute(0, 2, 3, 1)
+                target_tmp = target_tmp.contiguous().view(-1, target_tmp.size(3))
+                target_tmp = target_tmp.squeeze(1)
+                target_tmp = target_tmp.long()
+            else:
+                output_tmp = output
+                target_tmp = target
 
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
-        # print(acc1, acc5, flush=True)
+            loss = criterion(output_tmp, target_tmp)
 
         batch_size = images.shape[0]
         metric_logger.update(loss=loss.item())
-        metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
-        metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
+
+        if args.dataset_type == "sen1floods11":
+            output = output.permute(0, 3, 1, 2)
+            output = torch.nn.functional.softmax(output, dim=1)
+            target = target.squeeze(1)
+            score = metric(output, target)
+            for key in score.keys():
+                if score[key].dim() > 0:  # 1-D array
+                    for i, s in enumerate(score[key]):
+                        metric_logger.meters[f"{key}-{i}"].update(s.item())
+                else:
+                    metric_logger.meters[key].update(score[key].item())
+        else:
+            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
+            metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
+
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
-          .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
 
-    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    if args.dataset_type == "sen1floods11":
+        test_metric = metric.compute()
+
+        logging_text = " "
+        for key in test_metric.keys():
+            if score[key].dim() > 0:  # 1-D array
+                for i, s in enumerate(score[key]):
+                    logging_text += f"{key}-{i} {s.item():.3f} "
+            else:
+                logging_text += f"{key} {test_metric[key].item():.3f} "
+
+        logging_text += f"loss {metric_logger.loss.global_avg:.3f}"
+
+        return_dict = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+        # we replace the metrics with metric.compute() values
+        for key in test_metric.keys():
+            if score[key].dim() > 0:  # 1-D array
+                for i, s in enumerate(score[key]):
+                    return_dict[f"{key}-{i}"] = s.item()
+            else:
+                return_dict[key] = test_metric[key].item()
+
+        return return_dict
+    else:
+        print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
+              .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
+
+        return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
 @torch.no_grad()

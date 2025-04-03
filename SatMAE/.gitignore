@@ -163,3 +163,5 @@ out/
 output_dir/
 log_dir
 wandb
+output_dir*
+log_dir*
