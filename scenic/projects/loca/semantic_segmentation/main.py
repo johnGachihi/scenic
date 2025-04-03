@@ -8,6 +8,7 @@ from scenic.train_lib import train_utils
 from scenic.projects.loca.semantic_segmentation import trainer
 from scenic.projects.loca import loca_dataset  # pylint: disable=unused-import
 from scenic.projects.loca import finetuning_dataset  # pylint: disable=unused-import
+from scenic.projects.loca import spacenet_dataset  # pylint: disable=unused-import
 from scenic.projects.loca import ops  # pylint: disable=unused-import
 
 FLAGS = flags.FLAGS

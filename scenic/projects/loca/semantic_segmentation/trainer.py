@@ -63,10 +63,15 @@ def train_step(
   step = train_state.global_step
   batch['label'] = batch['label'].squeeze(-1)  # TODO: Remove after removing dim in dataset
 
+  if 's2_img' in batch:
+    input_key = 's2_img'
+  else:
+    input_key = 'image'
+
   def training_loss_fn(params):
     _logits = flax_model.apply(
       {'params': params},
-      batch['s2_img'] if 's2_img' in batch else batch['input'],
+      batch[input_key],
       train=True,
       rngs={'dropout': dropout_rng})
 
@@ -137,9 +142,14 @@ def eval_step(
     """
   batch['label'] = batch['label'].squeeze(-1)  # TODO: Remove after removing dim in dataset
 
+  if 's2_img' in batch:
+    input_key = 's2_img'
+  else:
+    input_key = 'image'
+
   logits = flax_model.apply(
     {'params': train_state.params},
-    batch['s2_img'] if 's2_img' in batch else batch['input'],
+    batch[input_key],
     train=False,
     debug=debug)
 

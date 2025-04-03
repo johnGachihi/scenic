@@ -124,10 +124,7 @@ def get_config():
     config.xprof = True  # Profile using xprof.
     # config.checkpoint = True  # Do checkpointing.
     # config.checkpoint_steps = 10000
-    config.log_summary_steps = 100 if config.dataset_configs.dataset == 'sen1_floods11' else 100
-    config.log_eval_steps = 10 if config.dataset_configs.dataset == 'sen1_floods11' else 1000
-
-    config.class_rebalancing_factor = 0.9 if config.dataset_configs.dataset == 'substation' else None
-    config.class_proportions = [0.99, 0.01] if config.dataset_configs.dataset == 'substation' else None
+    config.log_summary_steps = 100
+    config.log_eval_steps = 10
 
     return config
