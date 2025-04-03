@@ -37,6 +37,7 @@ from helpers import NativeScalerWithGradNormCount as NativeScaler
 from helpers import str2bool, remap_checkpoint_keys, load_custom_checkpoint
 from optim_factory import create_optimizer, LayerDecayValueAssigner
 from sen1floods11_dataset import Sen1Floods11Dataset
+from spacenet_dataset import Spacenet1Dataset
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 os.environ['TORCH_USE_CUDA_DSA'] = '1'
@@ -53,6 +54,7 @@ def criterion_fn(args):
 
     criterion_dict = {
         "sen1floods11": torch.nn.CrossEntropyLoss(ignore_index=-1),
+        "spacenet1": torch.nn.CrossEntropyLoss(),
         "m-eurosat": LabelSmoothingCrossEntropy(args.smoothing),
         "m-so2sat": LabelSmoothingCrossEntropy(args.smoothing),
         "m-bigearthnet": LabelSmoothingBinaryCrossEntropy(args.smoothing),
@@ -342,6 +344,7 @@ def get_args_parser():
         default="m-bigearthnet",
         choices=[
             "sen1floods11",
+            "spacenet1",
             "m-eurosat",
             "m-so2sat",
             "m-bigearthnet",
@@ -440,7 +443,7 @@ def main(args: argparse.Namespace):
     print(args)
     device = torch.device(args.device)
 
-    if '.pth' not in args.finetune and '.pt' not in args.finetune:
+    if args.finetune and ('.pth' not in args.finetune and '.pt' not in args.finetune):
         # it is a directory, so we get the last checkpoint
         args.finetune = os.path.join(args.finetune, sorted(os.listdir(args.finetune))[-1])
 
@@ -468,9 +471,13 @@ def main(args: argparse.Namespace):
             no_ffcv=args.no_ffcv,
             seed=args.seed,
         )
-    elif args.data_set == "sen1floods11":
-        train_ds = Sen1Floods11Dataset(split='train')
-        val_ds = Sen1Floods11Dataset(split='val')
+    elif args.data_set in ["sen1floods11", "spacenet1"]:
+        if args.data_set == "sen1floods11":
+            train_ds = Sen1Floods11Dataset(split='train')
+            val_ds = Sen1Floods11Dataset(split='val')
+        else:
+            train_ds = Spacenet1Dataset(split='train')
+            val_ds = Spacenet1Dataset(split='val')
 
         train_dataloader = torch.utils.data.DataLoader(
             train_ds,
@@ -497,7 +504,7 @@ def main(args: argparse.Namespace):
     
     
     num_classes = task.num_classes if task is not None else num_classes
-    if args.data_set == "sen1floods11":
+    if args.data_set in ["sen1floods11", "spacenet1"]:
         samples, targets = next(iter(train_dataloader))
     else:
         samples, targets, _, _ = next(iter(train_dataloader))
@@ -534,7 +541,8 @@ def main(args: argparse.Namespace):
                 in_chans=in_channels,
             )
 
-    model, _ = load_custom_checkpoint(model, args) # freezing and unfreezing is done in this function
+    if args.finetune:
+        model, _ = load_custom_checkpoint(model, args) # freezing and unfreezing is done in this function
     model.to(device)
 
 

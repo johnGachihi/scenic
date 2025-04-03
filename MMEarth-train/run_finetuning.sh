@@ -3,7 +3,7 @@ python -m  main_finetune \
       --batch_size 32 \
       --update_freq 2 \
       --blr 2e-4 \
-      --epochs 2 \
+      --epochs 100 \
       --warmup_epochs 0 \
       --layer_decay_type 'single' \
       --layer_decay 0.9 \
@@ -13,9 +13,8 @@ python -m  main_finetune \
       --mixup 0. \
       --cutmix 0. \
       --smoothing 0.2 \
-      --finetune /home/admin/satellite-loca/scenic/MMEarth-train/output_dir/checkpoint-99.pth \
       --output_dir output_dir_test \
-      --data_set "sen1floods11" \
+      --data_set "spacenet1" \
       --linear_probe False \
       --pretraining testing \
       --wandb False \
@@ -26,6 +25,7 @@ python -m  main_finetune \
       --save_ckpt False \
       --no_ffcv False \
       --run_on_test False \
-      --num_workers 8 \
+      --num_workers 1 \
       --geobench_bands_type 'bgr' \
       --partition 'default'
+      # --finetune /home/admin/satellite-loca/scenic/MMEarth-train/output_dir/checkpoint-99.pth \

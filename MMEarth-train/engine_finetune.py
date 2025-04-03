@@ -88,7 +88,7 @@ def train_one_epoch(
     for data_iter_step, dataloader_ret in enumerate(
         metric_logger.log_every(data_loader, print_freq, header)
     ):
-        if args.data_set == "sen1floods11":
+        if args.data_set in ["sen1floods11", "spacenet1"]:
             samples, targets = dataloader_ret
         else :
             samples, targets, _, _ = dataloader_ret
