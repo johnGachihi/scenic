@@ -242,7 +242,7 @@ def evaluate(data_loader, model, device, args):
 
         # print("before pass model")
         # compute output
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast("cuda"):
             output = model(images)
             if args.dataset_type in ["sen1floods11", "spacenet1"]:
                 output = output.permute(0, 2, 3, 1)
@@ -268,7 +268,7 @@ def evaluate(data_loader, model, device, args):
             for key in score.keys():
                 if score[key].dim() > 0:  # 1-D array
                     for i, s in enumerate(score[key]):
-                        metric_logger.meters[f"{key}-{i}"].update(s.item())
+                        metric_logger.meters[f"{key}_{i}"].update(s.item())
                 else:
                     metric_logger.meters[key].update(score[key].item())
         else:
@@ -282,21 +282,24 @@ def evaluate(data_loader, model, device, args):
     if args.dataset_type in ["sen1floods11", "spacenet1"]:
         test_metric = metric.compute()
 
-        logging_text = " "
+        logging_text = "**** "
+        return_dict = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
         for key in test_metric.keys():
-            if score[key].dim() > 0:  # 1-D array
-                for i, s in enumerate(score[key]):
-                    logging_text += f"{key}-{i} {s.item():.3f} "
+            if test_metric[key].dim() > 0:  # 1-D array
+                for i, s in enumerate(test_metric[key]):
+                    logging_text += f"{key}_{i} {s.item():.3f} "
+                    return_dict[f"{key}_{i}"] = s.item()
             else:
                 logging_text += f"{key} {test_metric[key].item():.3f} "
+                return_dict[key] = test_metric[key].item()
 
         logging_text += f"loss {metric_logger.loss.global_avg:.3f}"
+        print(logging_text)
 
-        return_dict = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
         # we replace the metrics with metric.compute() values
         for key in test_metric.keys():
-            if score[key].dim() > 0:  # 1-D array
-                for i, s in enumerate(score[key]):
+            if test_metric[key].dim() > 0:  # 1-D array
+                for i, s in enumerate(test_metric[key]):
                     return_dict[f"{key}-{i}"] = s.item()
             else:
                 return_dict[key] = test_metric[key].item()

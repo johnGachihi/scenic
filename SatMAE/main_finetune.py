@@ -281,7 +281,7 @@ def main(args):
         )
 
     if args.finetune and not args.eval:
-        checkpoint = torch.load(args.finetune, map_location='cpu')
+        checkpoint = torch.load(args.finetune, map_location='cpu', weights_only=False)
 
         print("Load pre-trained checkpoint from: %s" % args.finetune)
         checkpoint_model = checkpoint['model']
@@ -295,8 +295,27 @@ def main(args):
         #         model.patch_embed.proj.weight.data[:, :3, :, :] = ckpt_patch_embed_weight.data[:, :3, :, :]
 
         # TODO: Do something smarter?
-        for k in ['head.weight', 'head.bias']:
-            if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+        # for k in ['head.weight', 'head.bias']:
+        #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+        #         print(f"Removing key {k} from pretrained checkpoint")
+        #         del checkpoint_model[k]
+        # for i in range(len(args.grouped_bands)):
+        #     weight_k = f'patch_embed.{i}.proj.weight'
+        #     if weight_k in checkpoint_model and checkpoint_model[weight_k].shape != state_dict[weight_k].shape:
+        #         print(f"Removing key {weight_k} from pretrained checkpoint")
+        #         del checkpoint_model[weight_k]
+
+        for k in ["pos_embed", "head.weight", "head.bias"]:
+            if (
+                k in checkpoint_model
+                and checkpoint_model[k].shape != state_dict[k].shape
+            ):
+                print(f"Removing key {k} from pretrained checkpoint")
+                del checkpoint_model[k]
+
+        checkpoint_model_keys = list(checkpoint_model.keys())
+        for k in checkpoint_model_keys:
+            if "patch_embed" in k:
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
         for i in range(len(args.grouped_bands)):
@@ -312,16 +331,9 @@ def main(args):
         msg = model.load_state_dict(checkpoint_model, strict=False)
         print(msg)
 
-        # TODO: change assert msg based on patch_embed
-        if args.global_pool:
-            print(set(msg.missing_keys))
-            # assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
-        else:
-            print(set(msg.missing_keys))
-            # assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
-
         # manually initialize fc layer
-        trunc_normal_(model.head.weight, std=2e-5)
+        if hasattr(model.head, 'weight'):
+            trunc_normal_(model.head.weight, std=2e-5)
 
     model.to(device)
 
@@ -407,7 +419,7 @@ def main(args):
                 args=args
             )
 
-        if args.output_dir and (epoch % args.save_every == 0 or epoch + 1 == args.epochs):
+        if args.output_dir and (epoch % args.save_every == 100 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
@@ -418,13 +430,6 @@ def main(args):
             test_stats = evaluate(data_loader_val, model, device, args)
 
         if args.dataset_type in ["sen1floods11", "spacenet1"]:
-            logging_text = "Metric: "
-            for k, v in test_stats.items():
-                if k != "loss":
-                    logging_text += f"{k} - {v:.3f} "
-
-            print(logging_text)
-
             if log_writer is not None:
                 for key in test_stats.keys():
                     log_writer.add_scalar(f"perf/val_{key}", test_stats[key], epoch)

@@ -12,6 +12,7 @@ import torch.nn as nn
 
 import timm.models.vision_transformer
 from util.pos_embed import get_2d_sincos_pos_embed
+from models_vit_seg import SimpleCNNSegmentationVisionTransformer
 
 
 class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
@@ -53,6 +54,13 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             outcome = x[:, 0]
 
         return outcome
+
+
+def vit_small_seg(**kwargs):
+    model = SimpleCNNSegmentationVisionTransformer(
+        embed_dim=384, depth=12, num_heads=6, mlp_ratio=4, qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+    return model
 
 
 def vit_base_patch16(**kwargs):

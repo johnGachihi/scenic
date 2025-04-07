@@ -13,6 +13,7 @@ import timm.models.vision_transformer
 from timm.models.vision_transformer import PatchEmbed
 
 from models_vit_segmentation_group_channels import SimpleCNNSegmentationGroupChannelsVisionTransformer
+from models_vit_segmenter_group_channels import SegmenterGroupChannelsViT
 from util.pos_embed import get_2d_sincos_pos_embed, get_1d_sincos_pos_embed_from_grid
 
 
@@ -104,6 +105,13 @@ def vit_small_simple_cnn_seg(**kwargs):
     model = SimpleCNNSegmentationGroupChannelsVisionTransformer(
         channel_embed=128, embed_dim=384, depth=12, num_heads=6, mlp_ratio=4,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+    return model
+
+def vit_small_segmenter(**kwargs):
+    model = SegmenterGroupChannelsViT(
+        channel_embed=128, embed_dim=384, depth=12, num_heads=6, mlp_ratio=4,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs
+    )
     return model
 
 

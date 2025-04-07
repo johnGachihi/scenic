@@ -70,6 +70,9 @@ def get_args_parser():
         help="Name of dataset to finetune",
     )
 
+    parser.add_argument('--dropped_bands', type=int, nargs='+', default=None,
+                        help="Which bands (0 indexed) to drop from sentinel data.")
+
     parser.add_argument("--input_size", default=224, type=int, help="images input size")
     parser.add_argument("--patch_size", default=16, type=int, help="patch size")
 
@@ -301,8 +304,8 @@ def main(args):
     # dataset_train = build_dataset(is_train=True, args=args)
     # dataset_val = build_dataset(is_train=False, args=args)
     if args.dataset == "sen1floods11":
-        dataset_train = Sen1Floods11Dataset(split="train")
-        dataset_val = Sen1Floods11Dataset(split="val")
+        dataset_train = Sen1Floods11Dataset(split="train", args=args)
+        dataset_val = Sen1Floods11Dataset(split="val", args=args)
     else:
         dataset_train = Spacenet1Dataset(split="train")
         dataset_val = Spacenet1Dataset(split="val")
@@ -371,6 +374,7 @@ def main(args):
 
     sample, _ = next(iter(data_loader_train))
     in_chan = sample.shape[1]
+    print("Input channels: %d" % in_chan)
 
     model = models_vit.__dict__[args.model](
         num_classes=args.nb_classes,
@@ -436,9 +440,9 @@ def main(args):
     eff_batch_size = args.batch_size * args.accum_iter * misc.get_world_size()
 
     if args.lr is None:  # only base_lr is specified
-        args.lr = args.blr * eff_batch_size / 1024
+        args.lr = args.blr * eff_batch_size / 256
 
-    print("base lr: %.2e" % (args.lr * 1024 / eff_batch_size))
+    print("base lr: %.2e" % (args.lr * 256 / eff_batch_size))
     print("actual lr: %.2e" % args.lr)
 
     print("accumulate grad iterations: %d" % args.accum_iter)

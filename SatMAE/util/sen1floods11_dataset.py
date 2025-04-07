@@ -8,6 +8,7 @@ class Sen1Floods11Dataset(torch.utils.data.Dataset):
   def __init__(self, split, args):
     self.split = split
     self.dropped_bands = args.dropped_bands
+    self.input_size = args.input_size
 
     # Load the dataset from the TensorFlow Datasets
     builder = tfds.builder('sen1_floods11')
@@ -37,8 +38,8 @@ class Sen1Floods11Dataset(torch.utils.data.Dataset):
       img = img[keep_idxs, :, :]
 
     # Resize
-    img = tv.transforms.Resize(224)(img)
-    label = (tv.transforms.Resize(224, interpolation=tv.transforms.InterpolationMode.NEAREST)
+    img = tv.transforms.Resize(self.input_size)(img)
+    label = (tv.transforms.Resize(self.input_size, interpolation=tv.transforms.InterpolationMode.NEAREST)
              (label))
 
     return img, label

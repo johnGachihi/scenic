@@ -1,0 +1,25 @@
+python -m torch.distributed.launch --nproc_per_node=1 main_finetune.py \
+  --model vit_small_simple_cnn_segmentation \
+  --batch_size 32 \
+  --accum_iter 1 \
+  --epochs 200 \
+  --warmup_epochs 5 \
+  --input_size 112 \
+  --patch_size 8 \
+  --model_type group_c \
+  --dataset_type spacenet1 \
+  --grouped_bands 0 1 2 3 4 5 6 \
+  --nb_classes 2 \
+  --weight_decay 0.1 \
+  --drop_path 0.0 \
+  --reprob 0.0 \
+  --mixup 0.0 \
+  --cutmix 0.0 \
+  --smoothing 0.0 \
+  --blr 0.0002 \
+  --num_workers 8 \
+  --train_path /home/fmow-sentinel/train.csv \
+  --test_path /home/fmow-sentinel/val.csv \
+  --output_dir ./output_dir_ft \
+  --log_dir ./log_dir_ft \
+  --finetune /home/admin/satellite-loca/scenic/satmae_pp/output_dir/checkpoint-99.pth

@@ -3,7 +3,7 @@ export CUDA_LAUNCH_BLOCKING=1
 
 python -m torch.distributed.launch --nproc_per_node=1 main_finetune.py \
   --model vit_small_simple_cnn_seg \
-  --batch_size 8 --accum_iter 16 --blr 0.0001 \
+  --batch_size 64 --accum_iter 2 --blr 0.001 \
   --epochs 200 --num_workers 3 \
   --input_size 112 --patch_size 8  \
   --weight_decay 0.1 --drop_path 0.0 --reprob 0.0 --mixup 0.0 --cutmix 0.0 --smoothing 0.0 \

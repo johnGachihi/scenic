@@ -152,8 +152,6 @@ class ViT_SimpleCNNDecoder(timm.models.vision_transformer.VisionTransformer):
 
 def vit_simple_cnn_decoder_small_patch16(**kwargs):
     model = ViT_SimpleCNNDecoder(
-        in_chan=12,
-        patch_size=16,
         embed_dim=384,
         depth=12,
         num_heads=6,

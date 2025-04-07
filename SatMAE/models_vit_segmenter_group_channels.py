@@ -1,26 +1,34 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 from timm.models.vision_transformer import VisionTransformer, PatchEmbed
 
 from util.pos_embed import get_2d_sincos_pos_embed, get_1d_sincos_pos_embed_from_grid
 
+from segmenter import MaskTransformer
 
-class SimpleCNNSegmentationGroupChannelsVisionTransformer(VisionTransformer):
-  """ Vision Transformer with support for global average pooling
-  """
 
+class SegmenterGroupChannelsViT(VisionTransformer):
   def __init__(
       self,
-      global_pool=False,  # Here for compatibility
+      global_pool=False,
       channel_embed=256,
-      channel_groups=((0, 1, 2, 6), (3, 4, 5, 7), (8, 9)), **kwargs):
-    super().__init__(**kwargs)
+      channel_groups=((0, 1, 2, 6), (3, 4, 5, 7), (8, 9)),
+      decoder_embed_dim=384,
+      decoder_num_layers=12,
+      decoder_num_heads=6,
+      decoder_mlp_ratio=4,
+      **kwargs
+  ):
     del global_pool
+    super().__init__(**kwargs)
+
     img_size = kwargs['img_size']
     patch_size = kwargs['patch_size']
     in_c = kwargs['in_chans']
     embed_dim = kwargs['embed_dim']
-
+    num_classes = kwargs['num_classes']
     self.channel_groups = channel_groups
 
     self.patch_embed = nn.ModuleList([PatchEmbed(img_size, patch_size, len(group), embed_dim)
@@ -42,14 +50,11 @@ class SimpleCNNSegmentationGroupChannelsVisionTransformer(VisionTransformer):
     channel_cls_embed = torch.zeros((1, channel_embed))
     self.channel_cls_embed.data.copy_(channel_cls_embed.float().unsqueeze(0))
 
-    self.upsample_layers = nn.Sequential(
-      nn.ConvTranspose2d(num_groups * embed_dim, 192, 3, 2, padding=1, output_padding=1),
-      nn.ConvTranspose2d(192, 96, 3, 2, padding=1, output_padding=1),
-      nn.ConvTranspose2d(96, 48, 3, 2, padding=1, output_padding=1),
-      nn.ConvTranspose2d(48, 2, 3, 2, padding=1, output_padding=1),
+    self.head = MaskTransformer(
+      n_cls=num_classes, patch_size=patch_size, d_encoder=embed_dim,
+      n_layers=decoder_num_layers, n_heads=decoder_num_heads, d_model=decoder_embed_dim,
+      d_ff=decoder_embed_dim * decoder_mlp_ratio, drop_path_rate=0.0, dropout=0.0
     )
-
-    self.head = nn.Conv2d(2, kwargs['num_classes'], kernel_size=1, stride=1)
 
   def forward_features(self, x):
     b, c, h, w = x.shape
@@ -81,26 +86,32 @@ class SimpleCNNSegmentationGroupChannelsVisionTransformer(VisionTransformer):
 
     x = self.pos_drop(x)
 
-    x = self.blocks(x)
+    hidden_feats = []
+    for blk in self.blocks:
+      x = blk(x)
+      hidden_feats += [x]
+    hidden_feats = hidden_feats[:-1]
+
     x = self.norm(x)
 
-    return x[:, 1:]
+    return x[:, 1:], hidden_feats
 
-  def forward_head(self, x: torch.Tensor, pre_logits: bool = False) -> torch.Tensor:
-    N, L, D = x.shape
-    G = len(self.channel_groups)
-    x = x.view(N, G, -1, D)  # (N, G, L // G, D)
-    x = x.permute(0, 1, 3, 2).contiguous()  # (N, G, D, L // G)
-    Hp = Wp = int((L // G)**0.5)
-    x = x.view(N, G*D, Hp, Wp)  # (N, G*D, Hp, Wp)
-
-    x = self.upsample_layers(x)
-    x = self.head(x)
-
-    return x
+  def forward(self, x):
+    H, W = x.size(2), x.size(3)
+    x, enc_feats = self.forward_features(x)
+    masks = self.head(x, enc_feats, (H, W))
+    masks = F.interpolate(masks, size=(H, W), mode="bilinear")
+    return masks
 
 
-  def forward(self, x: torch.Tensor) -> torch.Tensor:
-    x = self.forward_features(x)
-    x = self.forward_head(x)
-    return x
+def unpadding(y, target_size):
+  H, W = target_size
+  H_pad, W_pad = y.size(2), y.size(3)
+  # crop predictions on extra pixels coming from padding
+  extra_h = H_pad - H
+  extra_w = W_pad - W
+  if extra_h > 0:
+    y = y[:, :, :-extra_h]
+  if extra_w > 0:
+    y = y[:, :, :, :-extra_w]
+  return y
