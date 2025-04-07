@@ -351,7 +351,7 @@ def train(
       train_state, tm = train_step_pmapped(train_state, train_batch)
       train_metrics.append(tm)
       # Additional training logs: learning rate:
-      extra_training_logs.append({'learning_rate': learning_rate_fn(step)})
+      extra_training_logs.append({'learning_rate': jnp.array([learning_rate_fn(step)])})
     for h in hooks:
       h(step)
 
@@ -365,6 +365,7 @@ def train(
         step=step,
         train_metrics=jax.tree_util.tree_map(train_utils.unreplicate_and_get,
                                              train_metrics),
+        extra_training_logs=jax.tree_util.tree_map(train_utils.unreplicate_and_get, extra_training_logs),
         writer=writer,
         prefix='train')
       train_metrics, extra_training_logs = [], []

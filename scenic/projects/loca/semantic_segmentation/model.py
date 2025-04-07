@@ -7,12 +7,13 @@ import ml_collections
 
 from scenic.model_lib.base_models.segmentation_model import SegmentationModel
 from scenic.projects.baselines import vit
-from scenic.projects.loca.vit import ToTokenSequence
+from scenic.projects.loca.vit import ToTokenSequence, Sen2ToTokenSequence
 
 
 class SemanticSegmentationModel(nn.Module):
+  sen2grouped: bool
+  sen2channel_groups: Tuple[Tuple[int]]
   num_classes: int
-
   mlp_dim: int
   num_layers: int
   num_heads: int
@@ -26,10 +27,19 @@ class SemanticSegmentationModel(nn.Module):
 
   @nn.compact
   def __call__(self, x: jnp.ndarray, train: bool, debug: bool = False) -> jnp.ndarray:
-    x, _ = ToTokenSequence(
-      patches=self.patches,
-      hidden_size=self.hidden_size,
-      posembs=self.posembs)(x)
+    _, h, w, _ = x.shape
+
+    if self.sen2grouped:
+      x, _ = Sen2ToTokenSequence(
+        patches=self.patches,
+        hidden_size=self.hidden_size,
+        posembs=self.posembs,
+        channel_groups=self.sen2channel_groups)(x)
+    else:
+      x, _ = ToTokenSequence(
+        patches=self.patches,
+        hidden_size=self.hidden_size,
+        posembs=self.posembs)(x)
 
     # ViT Encoder.
     for lyr in range(self.num_layers):
@@ -45,9 +55,16 @@ class SemanticSegmentationModel(nn.Module):
         x, deterministic=not train)
     patches_repr = nn.LayerNorm(name='encoder_norm')(x)
 
-    # Reshape from sequence of tokens to BHWD
-    # TODO: Parameterize 14
-    x = patches_repr.reshape(patches_repr.shape[0], 14, 14, patches_repr.shape[-1])
+    b, L, D = patches_repr.shape
+    hp, wp = h // self.patches.size[0], w // self.patches.size[1]
+    if self.sen2grouped:
+      # Reshape patches_repr to (b, Hp, Wp, G, D)
+      G = len(self.sen2channel_groups)
+      x = patches_repr.reshape(b, hp, wp, G, D)
+      x = x.reshape(b, hp, wp, G * D)
+    else:
+      # TODO: Parameterize 14
+      x = patches_repr.reshape(patches_repr.shape[0], 14, 14, patches_repr.shape[-1])
 
     # Gradually upsample spatial dimensions while reducing channels
     x = nn.ConvTranspose(192, kernel_size=(3, 3), strides=(2, 2))(x)  # 28x28, 192 channels
@@ -65,6 +82,8 @@ class SemSegModel(SegmentationModel):
   def build_flax_model(self) -> nn.Module:
     model_dtype = getattr(jnp, self.config.get('model_dtype_str', 'float32'))
     return SemanticSegmentationModel(
+      sen2grouped=self.config.get('sen2grouped', False),
+      sen2channel_groups=self.config.get('sen2changroups', None),
       num_classes=self.config.model.num_classes,
       mlp_dim=self.config.model.mlp_dim,
       num_layers=self.config.model.num_layers,

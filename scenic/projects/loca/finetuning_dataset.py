@@ -111,7 +111,7 @@ def get_dataset(*,
         'input_shape': input_shape,
         'num_train_examples': n_train_ex,
         'num_eval_examples': n_val_ex,
-        'num_test_examples': n_test_ex,
+        # 'num_test_examples': n_test_ex,
         'input_dtype': getattr(jnp, dtype_str),
     }
     return dataset_utils.Dataset(train_iter, eval_iter, test_iter, meta_data)

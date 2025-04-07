@@ -18,7 +18,7 @@
 import ml_collections
 
 VARIANT = 'S/16'
-_MMEARTH_TRAIN_SIZE = 100_000
+_MMEARTH_TRAIN_SIZE = 300_000
 
 """
 Sentinel2_l2a": {
