@@ -29,7 +29,7 @@ class MMearthSen2Dataset(torch.utils.data.Dataset):
     self.dropped_bands = args.dropped_bands
 
     # Load the dataset from the TensorFlow Datasets
-    builder = tfds.builder('mm_earth_builder')
+    builder = tfds.builder('mm_earth_builder', version=args.dataset_version)
     builder.download_and_prepare(file_format='array_record')
     self.tfds_dataset = builder.as_data_source(split="train")
 

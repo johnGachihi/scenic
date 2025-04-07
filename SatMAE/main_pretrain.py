@@ -75,6 +75,8 @@ def get_args_parser():
                         help='Train .csv path')
     parser.add_argument('--dataset_type', default='rgb', choices=['mmearth', 'rgb', 'temporal', 'sentinel', 'euro_sat', 'naip'],
                         help='Whether to use fmow rgb, sentinel, or other dataset.')
+    parser.add_argument('--dataset_version', default=None, help='The tfds dataset version.')
+
     parser.add_argument('--masked_bands', type=int, nargs='+', default=None,
                         help='Sequence of band indices to mask (with mean val) in sentinel dataset')
     parser.add_argument('--dropped_bands', type=int, nargs='+', default=None,
@@ -233,7 +235,7 @@ def main(args):
                 args=args
             )
 
-        if args.output_dir and (epoch % 2 == 0 or epoch + 1 == args.epochs):
+        if args.output_dir and (epoch % 20 == 0 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
