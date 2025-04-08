@@ -30,6 +30,106 @@ from scenic.model_lib.layers import attention_layers
 from scenic.model_lib.layers import nn_layers
 from scenic.projects.baselines import vit
 
+"""
+0-11 Sentinel 2 bands (excluding 10th band cloud band)
+12-19: Sentinel 1 bands (4 for each ASC and DESC)
+"""
+
+class MultiModalToTokenSequence(nn.Module):
+  patches: ml_collections.ConfigDict
+  hidden_size: int
+  channel_embed_size: int = 128  # TODO: Expose as config
+  posembs: Tuple[int, int] = (14, 14)
+  positional_embedding: str = 'learned'
+  sen2_channel_groups: Tuple[Tuple[int]] = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11)),
+  sen2_maintain_seqlen: bool = False
+  multimodal_type: str = 'early_fuse_s1_to_rgbn'
+
+  @nn.compact
+  def __call__(self, x: jnp.ndarray, seqlen: int = -1,
+               seqlen_selection: str = 'unstructured'):
+    fh, fw = self.patches.size
+    G = len(self.sen2_channel_groups)
+
+    ### Sentinel 2 Grouped Channel Patch Embedding
+    # Grouped Channel Patch Embedding
+    x_grouped = []
+    for idx, group in enumerate(self.sen2_channel_groups):
+      x_group = x[:, :, :, group]
+      x_group = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
+                        name=f'embedding-{idx}')(x_group)
+      x_grouped.append(x_group)
+
+    x_sen2 = jnp.stack(x_grouped, axis=3)  # (B, Hp, Wp, G, D)
+
+    # Add spectral and positional embedding
+    # Following SatMAE (except for initialization)
+    chanemb = self.param(
+      'channel_embed_input',
+      nn.initializers.normal(stddev=1 / np.sqrt(self.channel_embed_size)),
+      (1, G, self.channel_embed_size), x.dtype)  # (1, G, Dc)
+
+    posembed_size = self.hidden_size - self.channel_embed_size
+    posemb = self.param(
+      'posembed_input',
+      nn.initializers.normal(stddev=1 / np.sqrt(posembed_size)),
+      (1, self.posembs[0], self.posembs[1], posembed_size), x.dtype)  # (1, Hp, Wp, Dp)
+
+    _, h, w, _, _ = x_sen2.shape
+
+    if (h, w) != self.posembs:
+      posemb = jax.image.resize(posemb, (1, h, w, posembed_size), 'bilinear')
+
+    # Expand channel embedding to add spatial dims
+    _chanemb = jnp.expand_dims(chanemb, axis=(1, 2))  # (1, 1, 1, G, Dc)
+    _chanemb = jnp.broadcast_to(
+      _chanemb, (1, h, w, G, self.channel_embed_size))  # (1, Hp, Wp, G, Dc)
+    # Expand positional embedding to add group dim
+    _posemb = jnp.expand_dims(posemb, axis=3)  # (1, Hp, Wp, 1, Dp)
+    _posemb = jnp.broadcast_to(
+      _posemb, (1, h, w, G, posembed_size))  # (1, Hp, Wp, G, Dp)
+
+    # Concatenate channel and positional embeddings
+    pos_chan_embed = jnp.concatenate((_chanemb, _posemb), axis=-1)  # (1, Hp, Wp, G, D)
+
+    x_sen2 = x_sen2 + pos_chan_embed
+    x_sen2 = jnp.reshape(x_sen2, (-1, h * w, G, self.hidden_size))  # (B, Hp * Wp = L, G, D)
+
+    ### Sentinel 1 Patch Embedding
+    x_sen1 = x[:, :, :, 12:]  # (B, Hp, Wp, C_sen1)
+    x_sen1 = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
+                name='embedding')(x_sen1)  # [B, Hp, Wp, hidden_size]
+    x_sen1 = jnp.reshape(x_sen1, (-1, h * w, self.hidden_size))  # (B, L, D)
+
+    if self.multimodal_type == 'early_fuse_s1_to_rgbn':
+      # Add Sentinel 1 to Sentinel 2 RBG-NIR group
+      RGBN_GROUP_IDX = 0
+      x_sen2 = x_sen2.at[:, :, RGBN_GROUP_IDX, :].add(x_sen1)
+    elif self.multimodal_type == 'early_fuse_s1_to_all':
+      x_sen2 = x_sen2 + jnp.expand_dims(x_sen1, axis=2)  # (B, L, 1, D)
+
+    # Possibly dropping some tokens
+    idx_kept_tokens = None
+    n_tokens = x_sen2.shape[1]
+    if seqlen > 0:
+      rng = self.make_rng('droptok')
+      idx_kept_tokens = token_indexes_not_to_drop(
+        seqlen, n_tokens, seqlen_selection, rng)
+      if len(idx_kept_tokens) < n_tokens:
+        x_sen2 = jnp.take(x_sen2, idx_kept_tokens, axis=1)
+
+    b, L, _, _ = x_sen2.shape
+    if not self.sen2_maintain_seqlen:
+      return x_sen2.reshape(b, L * G, self.hidden_size), idx_kept_tokens
+    else:
+      # Sample across channel groups to maintain sequence length
+      rng = self.make_rng('changroup')
+      groups_to_keep = jax.random.randint(rng, shape=(b, L), minval=0, maxval=G)
+      # import pdb; pdb.set_trace()
+      x_sen2 = jnp.take_along_axis(x_sen2, groups_to_keep[:, :, None, None], axis=2)
+      x_sen2 = x_sen2.squeeze(axis=2)
+
+      return x_sen2, idx_kept_tokens
 
 class Sen2ToTokenSequence(nn.Module):
   """Sentinel 2 Grouped Channel embedding"""
@@ -204,6 +304,7 @@ class ViT4LOCA(nn.Module):
     dtype: JAX data type for activations.
   """
 
+  multimodal_type: Optional[str]
   sen2grouped: bool
   sen2changroups: Tuple[Tuple[int]]
   sen2grouped_maintain_seqlen: bool
@@ -230,7 +331,19 @@ class ViT4LOCA(nn.Module):
                seqlen_selection: str = 'unstructured', debug: bool = False):
     del debug
     # Input image -> sequence of patch tokens.
-    if self.sen2grouped:
+    if self.multimodal_type:
+      x, idx_kept_tokens = MultiModalToTokenSequence(
+        patches=self.patches,
+        hidden_size=self.hidden_size,
+        posembs=self.posembs,
+        sen2_channel_groups=self.sen2changroups,
+        sen2_maintain_seqlen=self.sen2grouped_maintain_seqlen,
+        multimodal_type=self.multimodal_type
+      )(
+        x, seqlen=seqlen if drop_moment == 'early' else -1,
+        seqlen_selection=seqlen_selection
+      )
+    elif self.sen2grouped:
       x, idx_kept_tokens = Sen2ToTokenSequence(
         patches=self.patches,
         hidden_size=self.hidden_size,
@@ -388,6 +501,7 @@ class ViTLOCAModel(base_model.BaseModel):
   def build_flax_model(self) -> nn.Module:
     model_dtype = getattr(jnp, self.config.get('model_dtype_str', 'float32'))
     return ViT4LOCA(
+      multimodal_type=self.config.get('multimodal', None),
       sen2grouped=self.config.get('sen2grouped', False),
       sen2changroups=self.config.get('sen2changroups', None),
       sen2grouped_maintain_seqlen=self.config.get('sen2grouped_maintain_seqlen', False),

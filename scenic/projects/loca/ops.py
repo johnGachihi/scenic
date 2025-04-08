@@ -241,6 +241,14 @@ def select_bands(bands, inkey="inputs"):
 
   return _select_bands
 
+@registry.Registry.register("preprocess_ops.concat", "function")
+def get_concat(inkey1, inkey2, outkey, axis):
+  """Concatenate two tensors along a specified axis."""
+  def _concat(data):
+    data[outkey] = tf.concat([data[inkey1], data[inkey2]], axis=axis)
+    return data
+  return _concat
+
 
 @registry.Registry.register("preprocess_ops.init_patch_matching_tracker",
                             "function")
