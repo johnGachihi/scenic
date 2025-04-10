@@ -7,10 +7,11 @@ import ml_collections
 
 from scenic.model_lib.base_models.segmentation_model import SegmentationModel
 from scenic.projects.baselines import vit
-from scenic.projects.loca.vit import ToTokenSequence, Sen2ToTokenSequence
+from scenic.projects.loca.vit import ToTokenSequence, Sen2ToTokenSequence, MultiModalToTokenSequence
 
 
 class SemanticSegmentationModel(nn.Module):
+  multimodal_type: str
   sen2grouped: bool
   sen2channel_groups: Tuple[Tuple[int]]
   num_classes: int
@@ -29,7 +30,15 @@ class SemanticSegmentationModel(nn.Module):
   def __call__(self, x: jnp.ndarray, train: bool, debug: bool = False) -> jnp.ndarray:
     _, h, w, _ = x.shape
 
-    if self.sen2grouped:
+    if self.multimodal_type is not None:
+      x, _, _, num_channels = MultiModalToTokenSequence(
+        patches=self.patches,
+        hidden_size=self.hidden_size,
+        posembs=self.posembs,
+        sen2_channel_groups=self.sen2channel_groups,
+        multimodal_type=self.multimodal_type
+      )(x)
+    elif self.sen2grouped:
       x, _ = Sen2ToTokenSequence(
         patches=self.patches,
         hidden_size=self.hidden_size,
@@ -82,6 +91,7 @@ class SemSegModel(SegmentationModel):
   def build_flax_model(self) -> nn.Module:
     model_dtype = getattr(jnp, self.config.get('model_dtype_str', 'float32'))
     return SemanticSegmentationModel(
+      multimodal_type=self.config.get('multimodal', None),
       sen2grouped=self.config.get('sen2grouped', False),
       sen2channel_groups=self.config.get('sen2changroups', None),
       num_classes=self.config.model.num_classes,

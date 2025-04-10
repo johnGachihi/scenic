@@ -2,7 +2,6 @@ import ml_collections
 
 VARIANT = 'S/16'
 TRAIN_SIZE = 284
-_SUBSTATION_TRAIN_SIZE = 26522 * 0.8
 
 
 SENTINEL2_L2A_MEAN = [1431, 1233, 1209, 1192, 1448, 2238, 2609, 2537, 2828, 884, 2226, 1537]
@@ -26,20 +25,26 @@ def get_config():
     config.dataset_configs.input_shape = (input_resolution, input_resolution, len(bands))
 
     config.dataset_configs.pp_train = (
-        f'permute_channels_last("s2_img")'
+        'permute_channels_last("s2_img")'
+        '|permute_channels_last("s1_img")'
         '|permute_channels_last("label")'
         f'|select_bands({bands}, "s2_img",)'
         f'|resize({input_resolution}, data_key="s2_img")'
+        f'|resize({input_resolution}, data_key="s1_img")'
         f'|resize({input_resolution}, "nearest", data_key="label")'
-        f'|keep("s2_img", "label")'
+        '|concat("s2_img", "s1_img", "image", axis=-1)'
+        f'|keep("image", "label")'
     )
     config.dataset_configs.pp_eval = (
         f'permute_channels_last("s2_img")'
+        '|permute_channels_last("s1_img")'
         '|permute_channels_last("label")'
         f'|select_bands({bands}, "s2_img",)'
         f'|resize({input_resolution}, data_key="s2_img")'
+        f'|resize({input_resolution}, data_key="s1_img")'
         f'|resize({input_resolution}, "nearest", data_key="label")'
-        f'|keep("s2_img", "label")'
+        '|concat("s2_img", "s1_img", "image", axis=-1)'
+        f'|keep("image", "label")'
     )
 
     config.dataset_configs.shuffle_buffer_size = 5  # TODO: tune
@@ -70,11 +75,15 @@ def get_config():
                                'H': 32}[version]
     config.model.num_heads = {'Ti': 3, 'S': 6, 'B': 12, 'L': 16, 'H': 16}[version]
 
-    config.sen2grouped = False
+    # Sentinel 2 channel-grouping
+    config.sen2grouped = True
     # B1:Aerosol = 0, B2:Blue = 1, B3:Green = 2, B4:Red = 3,
     # B5:RedEdge1 = 4, B6:RedEdge2 = 5, B7:RedEdge3 = 6, B8:NIR = 7, B8A:RedEdge4 = 8,
     # B9:WaterVapor = 9, B11:SWIR1 = 10, B12:SWIR2 = 11
     config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11))
+
+    # Multimodal
+    config.multimodal = 'early_fuse_s1_to_rgbn'
 
     # LOCA specific parameters
     config.n_ref_positions = int((input_resolution // patch) ** 2)
@@ -95,7 +104,7 @@ def get_config():
     # config.pretrained_weights =   '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_655005'
     # config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_56s_8p/checkpoint_234300'
     # config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_56s_4p/checkpoint_234300'
-    config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_224s_16p/checkpoint_937500'
+    config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_56_4_early_fusion_sen1_to_sen2rgb'
 
     # Learning rate.
     config.lr_configs = ml_collections.ConfigDict()

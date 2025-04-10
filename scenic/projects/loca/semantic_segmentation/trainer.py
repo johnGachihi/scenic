@@ -63,10 +63,10 @@ def train_step(
   step = train_state.global_step
   batch['label'] = batch['label'].squeeze(-1)  # TODO: Remove after removing dim in dataset
 
-  if 's2_img' in batch:
-    input_key = 's2_img'
-  else:
-    input_key = 'image'
+  input_key = 'image'
+
+  # TODO Move to dataset builder
+  batch[input_key] = jnp.nan_to_num(batch[input_key])
 
   def training_loss_fn(params):
     _logits = flax_model.apply(
@@ -142,10 +142,10 @@ def eval_step(
     """
   batch['label'] = batch['label'].squeeze(-1)  # TODO: Remove after removing dim in dataset
 
-  if 's2_img' in batch:
-    input_key = 's2_img'
-  else:
-    input_key = 'image'
+  input_key = 'image'
+
+  # TODO Move to dataset builder
+  batch[input_key] = jnp.nan_to_num(batch[input_key])
 
   logits = flax_model.apply(
     {'params': train_state.params},

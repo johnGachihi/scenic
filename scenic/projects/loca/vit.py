@@ -123,8 +123,6 @@ class MultiModalToTokenSequence(nn.Module):
 
       x = jnp.concat([x_sen2, jnp.expand_dims(x_sen1, axis=2)], axis=2)
 
-    jax.debug.breakpoint()
-
     # Possibly dropping some tokens
     # 1. Sample tokens across sequence dim
     idx_kept_tokens = None

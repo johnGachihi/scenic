@@ -36,7 +36,8 @@ def get_dataset(*,
         prefetch=dataset_configs.get('prefetch_to_host', 2),
         drop_remainder=True,
         cache=False,
-        ignore_errors=True)
+        ignore_errors=True,
+        skip_decode=None)
 
     if dataset_service_address:
         if shuffle_seed is not None:
@@ -105,7 +106,7 @@ def get_dataset(*,
     test_iter = map(shard_batches, test_iter)
     test_iter = jax_utils.prefetch_to_device(test_iter, 1)
 
-    input_shape = (-1,) + dataset_configs.input_shape
+    input_shape = (-1,) + tuple(train_ds.element_spec['image'].shape[1:])
     meta_data = {
         'num_classes': dataset_configs.num_classes,
         'input_shape': input_shape,

@@ -71,7 +71,7 @@ def get_config():
   n_queries = 10
   config.dataset_configs.number_of_focal_queries = n_queries - 1
   config.dataset_configs.pp_train = (
-    # Sentinel2 preprocessing.
+      # Sentinel2 preprocessing.
       'permute_channels_last("sentinel2")' +
       f'|standardize_sentinel2({SENTINEL2_L1C_MEAN}, {SENTINEL2_L1C_STD}, {SENTINEL2_L2A_MEAN}, {SENTINEL2_L2A_STD}, "sentinel2", "sentinel2_type")' +
 

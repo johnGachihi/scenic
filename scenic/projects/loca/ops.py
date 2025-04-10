@@ -242,9 +242,13 @@ def select_bands(bands, inkey="inputs"):
   return _select_bands
 
 @registry.Registry.register("preprocess_ops.concat", "function")
-def get_concat(inkey1, inkey2, outkey, axis):
+def get_concat(inkey1, inkey2, outkey, axis, common_dtype=tf.float32):
   """Concatenate two tensors along a specified axis."""
   def _concat(data):
+    if data[inkey1].dtype != data[inkey2].dtype:
+      data[inkey1] = tf.cast(data[inkey1], common_dtype)
+      data[inkey2] = tf.cast(data[inkey2], common_dtype)
+
     data[outkey] = tf.concat([data[inkey1], data[inkey2]], axis=axis)
     return data
   return _concat
