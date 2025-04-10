@@ -108,6 +108,7 @@ def get_args_parser():
                         help='Test .csv path')
     parser.add_argument('--dataset_type', default='sentinel', choices=['sen1floods11', 'spacenet1', 'rgb', 'sentinel', 'euro_sat', 'resisc', 'ucmerced'],
                         help='Whether to use fmow rgb, sentinel, or other dataset.')
+    parser.add_argument('--dataset_version', default=None, help='The tfds dataset version.')
     parser.add_argument('--masked_bands', default=None, nargs='+', type=int,
                         help='Sequence of band indices to mask (with mean val) in sentinel dataset')
     parser.add_argument('--dropped_bands', type=int, nargs='+', default=None,

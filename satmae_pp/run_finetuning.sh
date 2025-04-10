@@ -4,7 +4,7 @@ python -m torch.distributed.launch --master_port=29502 --nproc_per_node=1 main_f
   --epochs 200 --warmup_epochs 5 --num_workers 8 \
   --input_size 224 --patch_size 16 \
   --model_type group_c \
-  --dataset_type sen1floods11 \
+  --dataset_type sen1floods11 --dataset_version 0.0.1 \
   --dropped_bands 0 9 10 \
   --grouped_bands 0 1 2 6 --grouped_bands 3 4 5 7 --grouped_bands 8 9 \
   --nb_classes 2 \

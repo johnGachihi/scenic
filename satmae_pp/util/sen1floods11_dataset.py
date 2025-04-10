@@ -10,7 +10,7 @@ class Sen1Floods11Dataset(torch.utils.data.Dataset):
     self.dropped_bands = args.dropped_bands
 
     # Load the dataset from the TensorFlow Datasets
-    builder = tfds.builder('sen1_floods11')
+    builder = tfds.builder('sen1_floods11', version=args.dataset_version)
     builder.download_and_prepare(file_format='array_record')
     self.tfds_ds = builder.as_data_source(split=split)
 
