@@ -159,7 +159,7 @@ def get_config():
   config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11))
 
   # Multimodal
-  config.multimodal = 'early_fuse_s1_to_all'  # None, 'early_fuse_s1_to_rgbn' or, 'early_fuse_s1_to_all'
+  config.multimodal = 'early_fuse_s1_to_rgbn'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1'
 
   # Training.
   config.max_grad_norm = 1

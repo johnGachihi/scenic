@@ -47,7 +47,8 @@ class MultiModalToTokenSequence(nn.Module):
 
   @nn.compact
   def __call__(self, x: jnp.ndarray, seqlen: int = -1,
-               seqlen_selection: str = 'unstructured'):
+               seqlen_selection: str = 'unstructured',
+               drop_moment="early"):
     fh, fw = self.patches.size
     G = len(self.sen2_channel_groups)
 
@@ -99,37 +100,55 @@ class MultiModalToTokenSequence(nn.Module):
     x_sen1 = x[:, :, :, 12:]  # (B, Hp, Wp, C_sen1)
     x_sen1 = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
                 name='embedding')(x_sen1)  # [B, Hp, Wp, hidden_size]
-    x_sen1 = jnp.reshape(x_sen1, (-1, h * w, self.hidden_size))  # (B, L, D)
 
+    # Fuse
     if self.multimodal_type == 'early_fuse_s1_to_rgbn':
       # Add Sentinel 1 to Sentinel 2 RBG-NIR group
+      x_sen1 = jnp.reshape(x_sen1, (-1, h * w, self.hidden_size))  # (B, L, D)
       RGBN_GROUP_IDX = 0
-      x_sen2 = x_sen2.at[:, :, RGBN_GROUP_IDX, :].add(x_sen1)
+      x = x_sen2.at[:, :, RGBN_GROUP_IDX, :].add(x_sen1)
     elif self.multimodal_type == 'early_fuse_s1_to_all':
-      x_sen2 = x_sen2 + jnp.expand_dims(x_sen1, axis=2)  # (B, L, 1, D)
+      x = x_sen2 + jnp.expand_dims(x_sen1, axis=2)
+    elif self.multimodal_type == 'early_concat_s2_and_s1':
+      # Adding positional encodings to sen1.
+      posemb_sen1 = self.param(
+        'posembed_input_sen1',
+        nn.initializers.normal(stddev=1 / np.sqrt(self.hidden_size)),
+        (1, self.posembs[0], self.posembs[1], self.hidden_size), x.dtype)  # (1, Hp, Wp, Dp)
+      # Optionally resize the positional encodings.
+      if (h, w) != self.posembs:
+        posemb_sen1 = jax.image.resize(posemb, (1, h, w, self.hidden_size), 'bilinear')
+      x_sen1 = x_sen1 + posemb_sen1
+      x_sen1 = jnp.reshape(x_sen1, (-1, h * w, self.hidden_size))  # (B, L, D)
+
+      x = jnp.concat([x_sen2, jnp.expand_dims(x_sen1, axis=2)], axis=2)
+
+    jax.debug.breakpoint()
 
     # Possibly dropping some tokens
+    # 1. Sample tokens across sequence dim
     idx_kept_tokens = None
-    n_tokens = x_sen2.shape[1]
+    idx_kept_groups = None
+    n_tokens = x.shape[1]
     if seqlen > 0:
       rng = self.make_rng('droptok')
       idx_kept_tokens = token_indexes_not_to_drop(
         seqlen, n_tokens, seqlen_selection, rng)
       if len(idx_kept_tokens) < n_tokens:
-        x_sen2 = jnp.take(x_sen2, idx_kept_tokens, axis=1)
+        x = jnp.take(x, idx_kept_tokens, axis=1)
 
-    b, L, _, _ = x_sen2.shape
-    if not self.sen2_maintain_seqlen:
-      return x_sen2.reshape(b, L * G, self.hidden_size), idx_kept_tokens
-    else:
-      # Sample across channel groups to maintain sequence length
+    b, L, G, _ = x.shape
+    if drop_moment == "early" and self.sen2_maintain_seqlen:
+      # 2. Sample tokens across channel groups to maintain sequence length
       rng = self.make_rng('changroup')
-      groups_to_keep = jax.random.randint(rng, shape=(b, L), minval=0, maxval=G)
-      # import pdb; pdb.set_trace()
-      x_sen2 = jnp.take_along_axis(x_sen2, groups_to_keep[:, :, None, None], axis=2)
-      x_sen2 = x_sen2.squeeze(axis=2)
+      idx_kept_groups = jax.random.randint(rng, shape=(b, L), minval=0, maxval=G)
+      x = jnp.take_along_axis(x, idx_kept_groups[:, :, None, None], axis=2)
+      x = x.squeeze(axis=2)
+    else:
+      x = x.reshape(b, L * G, self.hidden_size)
 
-      return x_sen2, idx_kept_tokens
+    return x, idx_kept_tokens, idx_kept_groups, G
+
 
 class Sen2ToTokenSequence(nn.Module):
   """Sentinel 2 Grouped Channel embedding"""
@@ -332,7 +351,7 @@ class ViT4LOCA(nn.Module):
     del debug
     # Input image -> sequence of patch tokens.
     if self.multimodal_type:
-      x, idx_kept_tokens = MultiModalToTokenSequence(
+      x, idx_kept_tokens, _, num_channels = MultiModalToTokenSequence(
         patches=self.patches,
         hidden_size=self.hidden_size,
         posembs=self.posembs,
@@ -341,7 +360,7 @@ class ViT4LOCA(nn.Module):
         multimodal_type=self.multimodal_type
       )(
         x, seqlen=seqlen if drop_moment == 'early' else -1,
-        seqlen_selection=seqlen_selection
+        seqlen_selection=seqlen_selection, drop_moment=drop_moment
       )
     elif self.sen2grouped:
       x, idx_kept_tokens = Sen2ToTokenSequence(
@@ -391,11 +410,24 @@ class ViT4LOCA(nn.Module):
     patches_repr = x
     # Drop some tokens (in the reference view).
     if drop_moment == 'late':
+      b, L, D = patches_repr.shape
+      patches_repr = patches_repr.reshape(b, L // num_channels, num_channels, D)
+
       rng = self.make_rng('droptok')
       idx_kept_tokens = token_indexes_not_to_drop(
         seqlen, self.n_ref_positions, seqlen_selection, rng)
       if len(idx_kept_tokens) < self.n_ref_positions:
         patches_repr = jnp.take(patches_repr, idx_kept_tokens, axis=1)
+
+      b, L, G, _ = patches_repr.shape
+      if self.sen2grouped_maintain_seqlen:
+        # Sample across channel groups to maintain sequence length
+        rng = self.make_rng('changroup')
+        idx_kept_groups = jax.random.randint(rng, shape=(b, L), minval=0, maxval=G)
+        patches_repr = jnp.take_along_axis(patches_repr, idx_kept_groups[:, :, None, None], axis=2)
+        patches_repr = patches_repr.squeeze(axis=2)
+      else:
+        patches_repr = patches_repr.reshape(b, L * G, D)
 
     # Query patches look at those of the reference through cross attention.
     if inputs_kv is None:
@@ -410,7 +442,7 @@ class ViT4LOCA(nn.Module):
       x, inputs_kv=inputs_kv, deterministic=not train)
     x = nn.LayerNorm(name='final_norm')(x)
     x = nn.Dense(self.n_ref_positions, name='position_predictor')(x)
-    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens
+    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens, num_channels
 
 
 def norm_kernel_init_fn(rng, shape, dtype):

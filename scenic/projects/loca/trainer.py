@@ -89,7 +89,7 @@ def loca_train_step(
     # Step 1): Forward pass on the REFERENCE view.
     use_ema = config.apply_cluster_loss
     drop_moment = 'late' if config.apply_cluster_loss else 'early'
-    _, r_feat_targets, r_patch_features, _ = flax_model.apply(
+    _, r_feat_targets, r_patch_features, _, _ = flax_model.apply(
       {'params': train_state.ema_params if use_ema else params},
       batch['reference'],
       seqlen=config.reference_seqlen,
@@ -101,7 +101,7 @@ def loca_train_step(
     # Step 2): Forward pass on the QUERY views.
     use_pe = True if config.apply_cluster_loss else False
     #      2) a) Query with `random`-style.
-    q_rand_loc_pred, q_rand_feat_pred, _, q_rand_idx_kept = flax_model.apply(
+    q_rand_loc_pred, q_rand_feat_pred, _, q_rand_idx_kept, _ = flax_model.apply(
       {'params': params},
       batch['query0'],
       inputs_kv=r_patch_features,
@@ -110,7 +110,7 @@ def loca_train_step(
       train=True,
       rngs={'dropout': dropout_rng, 'droptok': droptok_rng, 'changroup': changroup_rng})
     #      2) b) Queries with `focal`-style.
-    q_foc_loc_pred, q_foc_feat_pred, _, _ = flax_model.apply(
+    q_foc_loc_pred, q_foc_feat_pred, _, _, num_channels = flax_model.apply(
       {'params': params},
       batch['queries'],
       inputs_kv=jnp.tile(r_patch_features, (n_q_foc, 1, 1)),
@@ -132,9 +132,9 @@ def loca_train_step(
     q_foc_loc_targets = batch['target_positions']
 
     if config.get('sen2grouped', False) and not config.get('sen2grouped_maintain_seqlen', False):
-      # Sen2Grouped produces L*3 tokens
+      # Sen2Grouped produces L*G tokens, where L is seqlen and G is number of channels-groups
       # Repeat targets for each channel group.
-      G = len(config.sen2changroups)
+      G = num_channels
       q_rand_loc_targets = jnp.tile(q_rand_loc_targets, (1, G))
       q_foc_loc_targets = jnp.tile(q_foc_loc_targets, (1, G))
 
