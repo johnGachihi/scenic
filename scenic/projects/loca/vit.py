@@ -43,6 +43,7 @@ class MultiModalToTokenSequence(nn.Module):
   positional_embedding: str = 'learned'
   sen2_channel_groups: Tuple[Tuple[int]] = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11)),
   sen2_maintain_seqlen: bool = False
+  changroups_sampling_weights: Optional[Tuple[int]] = None
   multimodal_type: str = 'early_fuse_s1_to_rgbn'
 
   @nn.compact
@@ -96,32 +97,23 @@ class MultiModalToTokenSequence(nn.Module):
     x_sen2 = x_sen2 + pos_chan_embed
     x_sen2 = jnp.reshape(x_sen2, (-1, h * w, G, self.hidden_size))  # (B, Hp * Wp = L, G, D)
 
-    ### Sentinel 1 Patch Embedding
-    x_sen1 = x[:, :, :, 12:]  # (B, Hp, Wp, C_sen1)
-    x_sen1 = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
-                name='embedding')(x_sen1)  # [B, Hp, Wp, hidden_size]
-
     # Fuse
-    if self.multimodal_type == 'early_fuse_s1_to_rgbn':
-      # Add Sentinel 1 to Sentinel 2 RBG-NIR group
-      x_sen1 = jnp.reshape(x_sen1, (-1, h * w, self.hidden_size))  # (B, L, D)
-      RGBN_GROUP_IDX = 0
-      x = x_sen2.at[:, :, RGBN_GROUP_IDX, :].add(x_sen1)
-    elif self.multimodal_type == 'early_fuse_s1_to_all':
-      x = x_sen2 + jnp.expand_dims(x_sen1, axis=2)
-    elif self.multimodal_type == 'early_concat_s2_and_s1':
-      # Adding positional encodings to sen1.
-      posemb_sen1 = self.param(
-        'posembed_input_sen1',
-        nn.initializers.normal(stddev=1 / np.sqrt(self.hidden_size)),
-        (1, self.posembs[0], self.posembs[1], self.hidden_size), x.dtype)  # (1, Hp, Wp, Dp)
-      # Optionally resize the positional encodings.
-      if (h, w) != self.posembs:
-        posemb_sen1 = jax.image.resize(posemb, (1, h, w, self.hidden_size), 'bilinear')
-      x_sen1 = x_sen1 + posemb_sen1
-      x_sen1 = jnp.reshape(x_sen1, (-1, h * w, self.hidden_size))  # (B, L, D)
+    if 'early_fuse' in self.multimodal_type:
+      ### Sentinel 1 Patch Embedding
+      x_sen1 = x[:, :, :, 12:]  # (B, Hp, Wp, C_sen1)
+      x_sen1 = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
+                       name='embedding')(x_sen1)  # [B, Hp, Wp, hidden_size]
 
-      x = jnp.concat([x_sen2, jnp.expand_dims(x_sen1, axis=2)], axis=2)
+      if self.multimodal_type == 'early_fuse_s1_to_rgbn':
+        # Add Sentinel 1 to Sentinel 2 RBG-NIR group
+        x_sen1 = jnp.reshape(x_sen1, (-1, h * w, self.hidden_size))  # (B, L, D)
+        RGBN_GROUP_IDX = 0
+        x = x_sen2.at[:, :, RGBN_GROUP_IDX, :].add(x_sen1)
+      elif self.multimodal_type == 'early_fuse_s1_to_all':
+        x = x_sen2 + jnp.expand_dims(x_sen1, axis=2)
+
+    if self.multimodal_type == 'early_concat_s2_and_s1':
+      x = x_sen2
 
     # Possibly dropping some tokens
     # 1. Sample tokens across sequence dim
@@ -139,7 +131,8 @@ class MultiModalToTokenSequence(nn.Module):
     if drop_moment == "early" and self.sen2_maintain_seqlen:
       # 2. Sample tokens across channel groups to maintain sequence length
       rng = self.make_rng('changroup')
-      idx_kept_groups = jax.random.randint(rng, shape=(b, L), minval=0, maxval=G)
+      idx_kept_groups = jax.random.choice(
+        rng, a=G, shape=(b, L), p=jnp.array(self.changroups_sampling_weights))
       x = jnp.take_along_axis(x, idx_kept_groups[:, :, None, None], axis=2)
       x = x.squeeze(axis=2)
     else:
@@ -325,6 +318,7 @@ class ViT4LOCA(nn.Module):
   sen2grouped: bool
   sen2changroups: Tuple[Tuple[int]]
   sen2grouped_maintain_seqlen: bool
+  changroups_sampling_weights: Optional[Tuple[int]]
   mlp_dim: int
   num_layers: int
   num_heads: int
@@ -349,12 +343,13 @@ class ViT4LOCA(nn.Module):
     del debug
     # Input image -> sequence of patch tokens.
     if self.multimodal_type:
-      x, idx_kept_tokens, _, num_channels = MultiModalToTokenSequence(
+      x, idx_kept_tokens, idx_kept_groups, num_channels = MultiModalToTokenSequence(
         patches=self.patches,
         hidden_size=self.hidden_size,
         posembs=self.posembs,
         sen2_channel_groups=self.sen2changroups,
         sen2_maintain_seqlen=self.sen2grouped_maintain_seqlen,
+        changroups_sampling_weights=self.changroups_sampling_weights,
         multimodal_type=self.multimodal_type
       )(
         x, seqlen=seqlen if drop_moment == 'early' else -1,
@@ -535,6 +530,7 @@ class ViTLOCAModel(base_model.BaseModel):
       sen2grouped=self.config.get('sen2grouped', False),
       sen2changroups=self.config.get('sen2changroups', None),
       sen2grouped_maintain_seqlen=self.config.get('sen2grouped_maintain_seqlen', False),
+      changroups_sampling_weights=self.config.get('changroups_sampling_weights', None),
       mlp_dim=self.config.model.mlp_dim,
       num_layers=self.config.model.num_layers,
       num_heads=self.config.model.num_heads,

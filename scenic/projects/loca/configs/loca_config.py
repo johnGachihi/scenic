@@ -17,7 +17,7 @@
 
 import ml_collections
 
-VARIANT = 'S/4'
+VARIANT = 'S/16'
 _MMEARTH_TRAIN_SIZE = 300_000
 
 """
@@ -62,11 +62,11 @@ def get_config():
   config.dataset_configs = ml_collections.ConfigDict()
   config.dataset_configs.prefetch_to_device = 1
   config.dataset_configs.shuffle_buffer_size = 25_000
-  reference_resolution = 56
+  reference_resolution = 224
   reference_patch_width = reference_resolution // patch
   query_rand_res = reference_resolution
   query_rand_mask_res = query_rand_res // patch  # Should be equal to patch width/height of rand query
-  query_foc_res = 24
+  query_foc_res = 96
   query_foc_mask_res = query_foc_res // patch  # Should be equal to patch width/height of focal query
   n_queries = 10
   config.dataset_configs.number_of_focal_queries = n_queries - 1
@@ -156,15 +156,19 @@ def get_config():
   # B1:Aerosol = 0, B2:Blue = 1, B3:Green = 2, B4:Red = 3,
   # B5:RedEdge1 = 4, B6:RedEdge2 = 5, B7:RedEdge3 = 6, B8:NIR = 7, B8A:RedEdge4 = 8,
   # B9:WaterVapor = 9, B11:SWIR1 = 10, B12:SWIR2 = 11
-  config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11))
+  config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11),# sen2
+                           (12, 16), (13, 17)  # sen1
+                          )
+  config.changroups_sampling_weights = (2, 2, 2, 3, 3)
 
   # Multimodal
-  config.multimodal = 'early_fuse_s1_to_rgbn'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1'
+  # NOTE: early_concat_s2_and_s1 requires you to add the sen1 bands in sen2changroups
+  config.multimodal = 'early_concat_s2_and_s1'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1'
 
   # Training.
   config.max_grad_norm = 1
   config.num_training_epochs = 100
-  config.batch_size = 1
+  config.batch_size = 128
   steps_per_epoch = _MMEARTH_TRAIN_SIZE // config.batch_size
   config.rng_seed = 42
   total_steps = config.num_training_epochs * steps_per_epoch
