@@ -61,7 +61,7 @@ def get_config():
   config.data_dtype_str = 'float32'
   config.dataset_configs = ml_collections.ConfigDict()
   config.dataset_configs.prefetch_to_device = 1
-  config.dataset_configs.shuffle_buffer_size = 25_000
+  config.dataset_configs.shuffle_buffer_size = 200
   reference_resolution = 224
   reference_patch_width = reference_resolution // patch
   query_rand_res = reference_resolution
@@ -164,11 +164,12 @@ def get_config():
   # Multimodal
   # NOTE: early_concat_s2_and_s1 requires you to add the sen1 bands in sen2changroups
   config.multimodal = 'early_concat_s2_and_s1'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1'
+  config.use_same_group_attn_mask = True
 
   # Training.
   config.max_grad_norm = 1
   config.num_training_epochs = 100
-  config.batch_size = 128
+  config.batch_size = 64
   steps_per_epoch = _MMEARTH_TRAIN_SIZE // config.batch_size
   config.rng_seed = 42
   total_steps = config.num_training_epochs * steps_per_epoch

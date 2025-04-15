@@ -128,7 +128,7 @@ class MultiModalToTokenSequence(nn.Module):
         x = jnp.take(x, idx_kept_tokens, axis=1)
 
     b, L, G, _ = x.shape
-    if drop_moment == "early" and self.sen2_maintain_seqlen:
+    if self.sen2_maintain_seqlen:  # maintain_seqlen means sample across groups dim
       # 2. Sample tokens across channel groups to maintain sequence length
       rng = self.make_rng('changroup')
       idx_kept_groups = jax.random.choice(
@@ -319,6 +319,7 @@ class ViT4LOCA(nn.Module):
   sen2changroups: Tuple[Tuple[int]]
   sen2grouped_maintain_seqlen: bool
   changroups_sampling_weights: Optional[Tuple[int]]
+  use_same_group_attn_mask: bool
   mlp_dim: int
   num_layers: int
   num_heads: int
@@ -377,6 +378,15 @@ class ViT4LOCA(nn.Module):
         positional_embedding=None if use_pe else 'pe_not_in_use',
         seqlen_selection=seqlen_selection)
 
+
+    same_group_attn_mask = None
+    if self.use_same_group_attn_mask:
+      same_group_attn_mask = nn.make_attention_mask(
+        idx_kept_groups,
+        idx_kept_groups,
+        pairwise_fn=lambda x, y: jnp.not_equal(x, y).astype(jnp.float32),
+      )
+
     # ViT Encoder.
     for lyr in range(self.num_layers):
       x = vit.Encoder1DBlock(
@@ -388,7 +398,7 @@ class ViT4LOCA(nn.Module):
                          self.stochastic_depth,
         name=f'encoderblock_{lyr}',
         dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
-        x, deterministic=not train, sow_weights=sow_weights)
+        x, attn_mask=same_group_attn_mask, deterministic=not train, sow_weights=True)
     x = nn.LayerNorm(name='encoder_norm')(x)
 
     # Optionally apply a clustering prediction loss.
@@ -404,24 +414,11 @@ class ViT4LOCA(nn.Module):
     patches_repr = x
     # Drop some tokens (in the reference view).
     if drop_moment == 'late':
-      b, L, D = patches_repr.shape
-      patches_repr = patches_repr.reshape(b, L // num_channels, num_channels, D)
-
       rng = self.make_rng('droptok')
       idx_kept_tokens = token_indexes_not_to_drop(
         seqlen, self.n_ref_positions, seqlen_selection, rng)
       if len(idx_kept_tokens) < self.n_ref_positions:
         patches_repr = jnp.take(patches_repr, idx_kept_tokens, axis=1)
-
-      b, L, G, _ = patches_repr.shape
-      if self.sen2grouped_maintain_seqlen:
-        # Sample across channel groups to maintain sequence length
-        rng = self.make_rng('changroup')
-        idx_kept_groups = jax.random.randint(rng, shape=(b, L), minval=0, maxval=G)
-        patches_repr = jnp.take_along_axis(patches_repr, idx_kept_groups[:, :, None, None], axis=2)
-        patches_repr = patches_repr.squeeze(axis=2)
-      else:
-        patches_repr = patches_repr.reshape(b, L * G, D)
 
     # Query patches look at those of the reference through cross attention.
     if inputs_kv is None:
@@ -436,7 +433,7 @@ class ViT4LOCA(nn.Module):
       x, inputs_kv=inputs_kv, deterministic=not train, sow_weights=sow_weights)
     x = nn.LayerNorm(name='final_norm')(x)
     x = nn.Dense(self.n_ref_positions, name='position_predictor')(x)
-    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens, idx_kept_groups, num_channels
+    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens, num_channels
 
 
 def norm_kernel_init_fn(rng, shape, dtype):
@@ -532,6 +529,7 @@ class ViTLOCAModel(base_model.BaseModel):
       sen2changroups=self.config.get('sen2changroups', None),
       sen2grouped_maintain_seqlen=self.config.get('sen2grouped_maintain_seqlen', False),
       changroups_sampling_weights=self.config.get('changroups_sampling_weights', None),
+      use_same_group_attn_mask=self.config.get('use_same_group_attn_mask', False),
       mlp_dim=self.config.model.mlp_dim,
       num_layers=self.config.model.num_layers,
       num_heads=self.config.model.num_heads,
