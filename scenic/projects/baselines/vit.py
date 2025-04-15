@@ -102,7 +102,7 @@ class Encoder1DBlock(nn.Module):
   stochastic_depth: float = 0.0
 
   @nn.compact
-  def __call__(self, inputs: jnp.ndarray, deterministic: bool) -> jnp.ndarray:
+  def __call__(self, inputs: jnp.ndarray, deterministic: bool, sow_weights=False) -> jnp.ndarray:
     """Applies Encoder1DBlock module.
 
     Args:
@@ -121,7 +121,7 @@ class Encoder1DBlock(nn.Module):
         kernel_init=nn.initializers.xavier_uniform(),
         broadcast_dropout=False,
         deterministic=deterministic,
-        dropout_rate=self.attention_dropout_rate)(x, x)
+        dropout_rate=self.attention_dropout_rate)(x, x, sow_weights=sow_weights)
     x = nn.Dropout(rate=self.dropout_rate)(x, deterministic)
     x = nn_layers.StochasticDepth(rate=self.stochastic_depth)(x, deterministic)
     x = x + inputs

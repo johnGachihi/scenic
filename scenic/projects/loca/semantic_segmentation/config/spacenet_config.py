@@ -63,9 +63,9 @@ def get_config():
     config.apply_cluster_loss = False  # Always false for finetuning
 
     # Training
-    config.batch_size = 1
-    config.eval_batch_size = 1
-    config.num_training_epochs = 200
+    config.batch_size = 16
+    config.eval_batch_size = 16
+    config.num_training_epochs = 300
     config.rng_seed = 42
     steps_per_epoch = TRAIN_SIZE // config.batch_size
     total_steps = config.num_training_epochs * steps_per_epoch
@@ -89,7 +89,7 @@ def get_config():
     config.xprof = True  # Profile using xprof.
     # config.checkpoint = True  # Do checkpointing.
     # config.checkpoint_steps = 10000
-    config.log_summary_steps = 100
-    config.log_eval_steps = 10
+    config.log_summary_steps = steps_per_epoch
+    config.log_eval_steps = steps_per_epoch
 
     return config

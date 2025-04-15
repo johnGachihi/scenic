@@ -339,7 +339,8 @@ class ViT4LOCA(nn.Module):
   def __call__(self, x: jnp.ndarray, *, inputs_kv: Optional[jnp.ndarray] = None,
                train: bool, seqlen: int = -1, use_pe: bool = True,
                drop_moment: str = 'early',
-               seqlen_selection: str = 'unstructured', debug: bool = False):
+               seqlen_selection: str = 'unstructured',
+               debug: bool = False, sow_weights: bool = False):
     del debug
     # Input image -> sequence of patch tokens.
     if self.multimodal_type:
@@ -387,7 +388,7 @@ class ViT4LOCA(nn.Module):
                          self.stochastic_depth,
         name=f'encoderblock_{lyr}',
         dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
-        x, deterministic=not train)
+        x, deterministic=not train, sow_weights=sow_weights)
     x = nn.LayerNorm(name='encoder_norm')(x)
 
     # Optionally apply a clustering prediction loss.
@@ -432,10 +433,10 @@ class ViT4LOCA(nn.Module):
       attention_dropout_rate=self.attention_dropout_rate,
       name='cross_attention_block',
       dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
-      x, inputs_kv=inputs_kv, deterministic=not train)
+      x, inputs_kv=inputs_kv, deterministic=not train, sow_weights=sow_weights)
     x = nn.LayerNorm(name='final_norm')(x)
     x = nn.Dense(self.n_ref_positions, name='position_predictor')(x)
-    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens, num_channels
+    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens, idx_kept_groups, num_channels
 
 
 def norm_kernel_init_fn(rng, shape, dtype):
@@ -490,7 +491,7 @@ class CrossAttentionEncoderBlock(vit.Encoder1DBlock):
 
   @nn.compact
   def __call__(self, inputs: jnp.ndarray, inputs_kv: jnp.ndarray,
-               deterministic: bool) -> jnp.ndarray:
+               deterministic: bool, sow_weights: bool = False) -> jnp.ndarray:
     # Attention block.
     assert inputs.ndim == 3
     x = nn.LayerNorm(dtype=self.dtype)(inputs)
@@ -501,7 +502,7 @@ class CrossAttentionEncoderBlock(vit.Encoder1DBlock):
       kernel_init=nn.initializers.xavier_uniform(),
       broadcast_dropout=False,
       deterministic=deterministic,
-      dropout_rate=self.attention_dropout_rate)(x, inputs_kv)
+      dropout_rate=self.attention_dropout_rate)(x, inputs_kv, sow_weights=sow_weights)
     x = nn.Dropout(rate=self.dropout_rate)(x, deterministic)
     x = nn_layers.StochasticDepth(rate=self.stochastic_depth)(x, deterministic)
     x = x + inputs

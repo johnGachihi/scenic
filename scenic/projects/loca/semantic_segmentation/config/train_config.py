@@ -16,7 +16,7 @@ def get_config():
     input_resolution = 224
 
     # Data
-    config.dataset_configs.dataset = 'sen1_floods11'  # sen1_floods11, substation
+    config.dataset_configs.dataset = 'spacenet1'  # sen1_floods11, substation
     config.dataset_configs.train_split = 'train'
     config.dataset_configs.val_split = 'val'
     config.dataset_configs.test_split = 'test'
@@ -80,10 +80,12 @@ def get_config():
     # B1:Aerosol = 0, B2:Blue = 1, B3:Green = 2, B4:Red = 3,
     # B5:RedEdge1 = 4, B6:RedEdge2 = 5, B7:RedEdge3 = 6, B8:NIR = 7, B8A:RedEdge4 = 8,
     # B9:WaterVapor = 9, B11:SWIR1 = 10, B12:SWIR2 = 11
-    config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11))
+    config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11),
+                             # (12,), (13,)
+                             )
 
     # Multimodal
-    config.multimodal = 'early_fuse_s1_to_rgbn'
+    config.multimodal = 'early_concat_s2_and_s1'
 
     # LOCA specific parameters
     config.n_ref_positions = int((input_resolution // patch) ** 2)
@@ -91,8 +93,8 @@ def get_config():
     config.apply_cluster_loss = False  # Always false for finetuning
 
     # Training
-    config.batch_size = 64
-    config.eval_batch_size = 64
+    config.batch_size = 16
+    config.eval_batch_size = 16
     config.num_training_epochs = 300
     config.rng_seed = 42
     steps_per_epoch = TRAIN_SIZE // config.batch_size
@@ -104,7 +106,11 @@ def get_config():
     # config.pretrained_weights =   '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_655005'
     # config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_56s_8p/checkpoint_234300'
     # config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_56s_4p/checkpoint_234300'
-    config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_56_4_early_fusion_sen1_to_sen2rgb'
+    # config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_56_4_early_fusion_sen1_to_sen2rgb'
+    # config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_224_51_early_concat/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_56_4_early_concat_early_group_sampling_ref/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped_maintain_seqlen/checkpoint_468700'
+    config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_937500'
 
     # Learning rate.
     config.lr_configs = ml_collections.ConfigDict()

@@ -517,7 +517,7 @@ def load_pretrained_weights(pretrained_weights_path, train_state: TrainState):
   return init_from_pretrain_state(
     train_state,
     restored_train_state,
-    skip_regex=r'ToTokenSequence_0.*embedding'
+    skip_regex=r'MultiModalToTokenSequence_0.*'
   )
 
 
