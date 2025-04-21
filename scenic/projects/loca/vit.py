@@ -31,8 +31,9 @@ from scenic.model_lib.layers import nn_layers
 from scenic.projects.baselines import vit
 
 """
-0-11 Sentinel 2 bands (excluding 10th band cloud band)
+0-11 Sentinel 2 bands (EXcluding 10th band cloud band)
 12-19: Sentinel 1 bands (4 for each ASC and DESC)
+20: DEM band
 """
 
 class MultiModalToTokenSequence(nn.Module):
@@ -112,8 +113,19 @@ class MultiModalToTokenSequence(nn.Module):
       elif self.multimodal_type == 'early_fuse_s1_to_all':
         x = x_sen2 + jnp.expand_dims(x_sen1, axis=2)
 
-    if self.multimodal_type == 'early_concat_s2_and_s1':
+    if self.multimodal_type == 'early_concat_s2_and_s1' or self.multimodal_type == 'early_concat_s2_s1_dem':
       x = x_sen2
+    elif self.multimodal_type == 'early_concat_s2_and_s1_early_fuse_dem':
+      dem = jnp.expand_dims(x[:, :, :, 20], axis=-1)  # (B, H, W, 1)
+      dem = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
+                    name='embedding_dem')(dem)  # [B, Hp, Wp, hidden_size]
+      dem = jnp.reshape(dem, (-1, h * w, self.hidden_size))  # (B, L, D)
+      dem = jnp.expand_dims(dem, axis=2)  # (B, L, 1, D)
+
+      x = (x_sen2 # sen1 and sen2 concatenated  # (B, L, G, D)
+           + dem
+           )  # (B, L, G, D)
+
 
     # Possibly dropping some tokens
     # 1. Sample tokens across sequence dim

@@ -47,6 +47,9 @@ SENTINEL1_MEAN = [-11.673448681503809, -19.04684937464606, -10.525772696311732, 
 SENTINEL1_STD = [5.1287824026286755, 6.432180454976982, 5.646047662186715, 7.724311760316525,
                  5.01231147683192, 6.296322894653895, 5.348371323330351, 7.184819430273331]
 
+DEM_MEAN = [750.3643697290039, 9.16537354736328]
+DEM_STD = [975.1516800116567, 8.8327303460871]
+
 
 def get_config():
   """Returns the default config for a 100 epoch LOCA training on ImageNet2012."""
@@ -79,10 +82,15 @@ def get_config():
       '|permute_channels_last("sentinel1")' +
       f'|standardize({SENTINEL1_MEAN}, {SENTINEL1_STD}, data_key="sentinel1")' +
 
-      # Concatenate Sentinel1 and Sentinel2 along channel dimension
-      '|concat("sentinel1", "sentinel2", "sentinel1_2", axis=-1)' +
+      # DEM preprocessing
+      '|permute_channels_last("dem")' +
+      f'|standardize({DEM_MEAN}, {DEM_STD}, data_key="dem")'
 
-      '|copy("sentinel1_2", "reference")' +
+      # Concatenate Sentinel1, Sentinel2 and DEM along channel dimension
+      '|concat("sentinel1", "sentinel2", "multimodal_img", axis=-1)' +
+      '|concat("dem", "multimodal_img", "multimodal_img", axis=-1)' +
+
+      '|copy("multimodal_img", "reference")' +
       f'|init_patch_matching_tracker({reference_patch_width}, "target_mask")' +
       '|init_box_tracker("target_box")' +
       f'|cropflip_generatemask({reference_resolution}, 32, flip=False, inkey=("reference", "target_mask", "target_box"), outkey=("reference", "target_mask", "target_box"))' +
@@ -91,7 +99,7 @@ def get_config():
       # '|random_grayscale(0.2, data_key="reference")' +
       # '|random_blur(1.0, data_key="reference")' +
       # f'|standardize({MEAN_RGB}, {STDDEV_RGB}, data_key="reference")' +
-      ''.join([f'|copy("sentinel1_2", "query{i}")' for i in range(n_queries)]) +
+      ''.join([f'|copy("multimodal_img", "query{i}")' for i in range(n_queries)]) +
       f'|inception_crop_with_mask(({query_rand_res}, {query_rand_res}), 32, 100, ({query_rand_mask_res}, {query_rand_mask_res}), inkey=("query0", "target_mask", "target_box"), outkey=("query0", "query0_mask", "query0_box"))' +
       ''.join([
                 f'|inception_crop_with_mask(({query_foc_res}, {query_foc_res}), 5, 32, ({query_foc_mask_res}, {query_foc_mask_res}), inkey=("query{i}", "target_mask", "target_box"), outkey=("query{i}", "query{i}_mask", "query{i}_box"))'
@@ -157,14 +165,15 @@ def get_config():
   # B5:RedEdge1 = 4, B6:RedEdge2 = 5, B7:RedEdge3 = 6, B8:NIR = 7, B8A:RedEdge4 = 8,
   # B9:WaterVapor = 9, B11:SWIR1 = 10, B12:SWIR2 = 11
   config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11),# sen2
-                           (12, 16), (13, 17)  # sen1
+                           (12, 16), (13, 17),  # sen1
+                           (20,)  # dem
                           )
-  config.changroups_sampling_weights = (2, 2, 2, 3, 3)
+  config.changroups_sampling_weights = (2, 2, 2, 3, 3, 6)
 
   # Multimodal
   # NOTE: early_concat_s2_and_s1 requires you to add the sen1 bands in sen2changroups
-  config.multimodal = 'early_concat_s2_and_s1'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1'
-  config.use_same_group_attn_mask = True
+  config.multimodal = 'early_concat_s2_and_s1_early_fuse_dem'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1, 'early_concat_s2_and_s1_early_fuse_dem'
+  config.use_same_group_attn_mask = False
 
   # Training.
   config.max_grad_norm = 1

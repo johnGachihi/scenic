@@ -16,7 +16,7 @@ def get_config():
     input_resolution = 224
 
     # Data
-    config.dataset_configs.dataset = 'spacenet1'  # sen1_floods11, substation
+    config.dataset_configs.dataset = 'sen1_floods11'  # sen1_floods11, substation
     config.dataset_configs.train_split = 'train'
     config.dataset_configs.val_split = 'val'
     config.dataset_configs.test_split = 'test'
@@ -110,7 +110,9 @@ def get_config():
     # config.pretrained_weights =   '/home/admin/john/scenic/loca_300k_224_51_early_concat/checkpoint_468700'
     # config.pretrained_weights = '/home/admin/john/scenic/loca_56_4_early_concat_early_group_sampling_ref/checkpoint_468700'
     # config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped_maintain_seqlen/checkpoint_468700'
-    config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_937500'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_937500'
+    # config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_same_group_mask_ref_and_query/checkpoint_468700'
+    config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_same_group_attn_masking_0_25/checkpoint_468700'
 
     # Learning rate.
     config.lr_configs = ml_collections.ConfigDict()
