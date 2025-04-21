@@ -111,6 +111,9 @@ def get_config():
     # config.pretrained_weights = '/home/admin/john/scenic/loca_56_4_early_concat_early_group_sampling_ref/checkpoint_468700'
     # config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped_maintain_seqlen/checkpoint_468700'
     # config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_937500'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_same_group_masking_enc_and_cross/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_same_group_attn_masking_0_25/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_937500'
     # config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_same_group_mask_ref_and_query/checkpoint_468700'
     config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_same_group_attn_masking_0_25/checkpoint_468700'
 

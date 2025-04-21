@@ -350,6 +350,7 @@ class ViT4LOCA(nn.Module):
 
   @nn.compact
   def __call__(self, x: jnp.ndarray, *, inputs_kv: Optional[jnp.ndarray] = None,
+               inputs_kv_kept_groups: Optional[jnp.ndarray] = None,
                train: bool, seqlen: int = -1, use_pe: bool = True,
                drop_moment: str = 'early',
                seqlen_selection: str = 'unstructured',
@@ -431,10 +432,18 @@ class ViT4LOCA(nn.Module):
         seqlen, self.n_ref_positions, seqlen_selection, rng)
       if len(idx_kept_tokens) < self.n_ref_positions:
         patches_repr = jnp.take(patches_repr, idx_kept_tokens, axis=1)
+        idx_kept_groups = jnp.take(idx_kept_groups, idx_kept_tokens, axis=1)
 
     # Query patches look at those of the reference through cross attention.
+    same_group_cross_attn_mask = None
     if inputs_kv is None:
       inputs_kv = copy.deepcopy(patches_repr)
+    if self.use_same_group_attn_mask and inputs_kv_kept_groups is not None:
+      same_group_cross_attn_mask = nn.make_attention_mask(
+        idx_kept_groups,
+        inputs_kv_kept_groups,
+        pairwise_fn=lambda x, y: jnp.not_equal(x, y).astype(jnp.float32),
+      )
     x = CrossAttentionEncoderBlock(
       mlp_dim=self.mlp_dim,
       num_heads=self.num_heads,
@@ -442,10 +451,10 @@ class ViT4LOCA(nn.Module):
       attention_dropout_rate=self.attention_dropout_rate,
       name='cross_attention_block',
       dtype=jax.dtypes.canonicalize_dtype(self.dtype))(
-      x, inputs_kv=inputs_kv, deterministic=not train, sow_weights=sow_weights)
+      x, inputs_kv=inputs_kv, deterministic=not train, attn_mask=same_group_cross_attn_mask, sow_weights=sow_weights)
     x = nn.LayerNorm(name='final_norm')(x)
     x = nn.Dense(self.n_ref_positions, name='position_predictor')(x)
-    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens, num_channels
+    return x, cluster_pred_outputs, patches_repr, idx_kept_tokens, num_channels, idx_kept_groups
 
 
 def norm_kernel_init_fn(rng, shape, dtype):
@@ -500,7 +509,8 @@ class CrossAttentionEncoderBlock(vit.Encoder1DBlock):
 
   @nn.compact
   def __call__(self, inputs: jnp.ndarray, inputs_kv: jnp.ndarray,
-               deterministic: bool, sow_weights: bool = False) -> jnp.ndarray:
+               deterministic: bool, attn_mask: jnp.ndarray = None,
+               sow_weights: bool = False) -> jnp.ndarray:
     # Attention block.
     assert inputs.ndim == 3
     x = nn.LayerNorm(dtype=self.dtype)(inputs)
@@ -511,7 +521,7 @@ class CrossAttentionEncoderBlock(vit.Encoder1DBlock):
       kernel_init=nn.initializers.xavier_uniform(),
       broadcast_dropout=False,
       deterministic=deterministic,
-      dropout_rate=self.attention_dropout_rate)(x, inputs_kv, sow_weights=sow_weights)
+      dropout_rate=self.attention_dropout_rate)(x, inputs_kv, mask=attn_mask, sow_weights=sow_weights)
     x = nn.Dropout(rate=self.dropout_rate)(x, deterministic)
     x = nn_layers.StochasticDepth(rate=self.stochastic_depth)(x, deterministic)
     x = x + inputs
