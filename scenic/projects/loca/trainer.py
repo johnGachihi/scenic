@@ -115,7 +115,7 @@ def loca_train_step(
       {'params': params},
       batch['queries'],
       inputs_kv=jnp.tile(r_patch_features, (n_q_foc, 1, 1)),
-      inputs_kv_kept_groups=jnp.tile(r_idx_groups_kept, (n_q_foc, 1)),
+      inputs_kv_kept_groups=jnp.tile(r_idx_groups_kept, (n_q_foc, 1)) if r_idx_groups_kept is not None else None,
       use_pe=use_pe,
       train=True,
       rngs={'dropout': dropout_rng, 'droptok': droptok_rng, 'changroup': changroup_rng})

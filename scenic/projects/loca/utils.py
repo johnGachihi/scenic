@@ -526,8 +526,8 @@ def get_imagenet_ckpt_params(checkpoint_file: str, train_state: TrainState):
   raw_train_state = checkpoints.restore_checkpoint(checkpoint_file, None)
   params = train_state['params'].unfreeze()
   # params['ToTokenSequence_0']['embedding'] = raw_train_state['student_weights']['ToTokenSequence_0']['embedding']
-  params['ToTokenSequence_0']['posembed_input'] = raw_train_state['student_weights']['ToTokenSequence_0'][
-    'posembed_input']
+  # params['ToTokenSequence_0']['posembed_input'] = raw_train_state['student_weights']['ToTokenSequence_0'][
+  #   'posembed_input']
   params['encoderblock_0'] = raw_train_state['student_weights']['encoderblock_0']
   params['encoderblock_1'] = raw_train_state['student_weights']['encoderblock_1']
   params['encoderblock_2'] = raw_train_state['student_weights']['encoderblock_2']
@@ -548,8 +548,8 @@ def get_imagenet_ckpt_params(checkpoint_file: str, train_state: TrainState):
 
   ema_params = train_state['ema_params'].unfreeze()
   # ema_params['ToTokenSequence_0']['embedding'] = raw_train_state['teacher_weights']['ToTokenSequence_0']['embedding']
-  ema_params['ToTokenSequence_0']['posembed_input'] = raw_train_state['teacher_weights']['ToTokenSequence_0'][
-    'posembed_input']
+  # ema_params['ToTokenSequence_0']['posembed_input'] = raw_train_state['teacher_weights']['ToTokenSequence_0'][
+  #   'posembed_input']
   ema_params['encoderblock_0'] = raw_train_state['teacher_weights']['encoderblock_0']
   ema_params['encoderblock_1'] = raw_train_state['teacher_weights']['encoderblock_1']
   ema_params['encoderblock_2'] = raw_train_state['teacher_weights']['encoderblock_2']

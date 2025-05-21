@@ -47,8 +47,8 @@ SENTINEL1_MEAN = [-11.673448681503809, -19.04684937464606, -10.525772696311732, 
 SENTINEL1_STD = [5.1287824026286755, 6.432180454976982, 5.646047662186715, 7.724311760316525,
                  5.01231147683192, 6.296322894653895, 5.348371323330351, 7.184819430273331]
 
-DEM_MEAN = [750.3643697290039, 9.16537354736328]
-DEM_STD = [975.1516800116567, 8.8327303460871]
+DEM_MEAN = [750.3643697290039]
+DEM_STD = [975.1516800116567]
 
 
 def get_config():
@@ -160,25 +160,33 @@ def get_config():
 
   # Sen2 Channel-grouping
   config.sen2grouped = True
-  config.sen2grouped_maintain_seqlen = True
-  # B1:Aerosol = 0, B2:Blue = 1, B3:Green = 2, B4:Red = 3,
-  # B5:RedEdge1 = 4, B6:RedEdge2 = 5, B7:RedEdge3 = 6, B8:NIR = 7, B8A:RedEdge4 = 8,
-  # B9:WaterVapor = 9, B11:SWIR1 = 10, B12:SWIR2 = 11
-  config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11),# sen2
-                           (12, 16), (13, 17),  # sen1
-                           (20,)  # dem
-                          )
+  config.sen2grouped_maintain_seqlen = False
+  # 0 => DEM
+  # 1 => asc_VV, 2 => asc_VH, 3 => asc_HH, 4 => asc_HV, 5 => des_VV, 6 => des_VH, 7 => des_HH, 8 => des_HV
+  # 9 => B1:UltraBlue, 10 => B2:Blue, 11 => B3:Green, 12 => B4:Red, 13 => B5:RedEdge1,
+  # 14 => B6:RedEdge2, 15 => B7:RedEdge3, 16 => B8:NIR, 17 => B8A:RedEdge4, 18 => B9:WaterVapor,
+  # 19 => B11:SWIR1, 20 => B12:SWIR2
+  config.sen2changroups = ((10, 11, 12, 16), (13, 14, 15, 17), (19, 20),  # sen2
+                           # (1, 2, 5, 6), (3, 4, 7, 8),  # sen1
+                           # (0,)  # dem
+                           )
   config.changroups_sampling_weights = (2, 2, 2, 3, 3, 6)
+
+
+  # config.sen2changroups = ((1, 2, 3, 7), (4, 5, 6, 8), (10, 11),# sen2
+  #                          (12, 16), (13, 17),  # sen1
+  #                          (20,)  # dem
+  #                         )
 
   # Multimodal
   # NOTE: early_concat_s2_and_s1 requires you to add the sen1 bands in sen2changroups
-  config.multimodal = 'early_concat_s2_and_s1_early_fuse_dem'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1, 'early_concat_s2_and_s1_early_fuse_dem'
+  config.multimodal = 'early_concat_s2_s1_dem'  # None, 'early_fuse_s1_to_rgbn', 'early_fuse_s1_to_all', 'early_concat_s2_and_s1, 'early_concat_s2_and_s1_early_fuse_dem'
   config.use_same_group_attn_mask = False
 
   # Training.
   config.max_grad_norm = 1
   config.num_training_epochs = 100
-  config.batch_size = 64
+  config.batch_size = 32
   steps_per_epoch = _MMEARTH_TRAIN_SIZE // config.batch_size
   config.rng_seed = 42
   total_steps = config.num_training_epochs * steps_per_epoch
