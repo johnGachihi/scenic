@@ -85,7 +85,7 @@ def get_config():
                              )
 
     # Multimodal
-    config.multimodal = 'early_concat_s2_and_s1'
+    # config.multimodal = 'early_concat_s2_and_s1'
 
     # LOCA specific parameters
     config.n_ref_positions = int((input_resolution // patch) ** 2)
@@ -95,7 +95,7 @@ def get_config():
     # Training
     config.batch_size = 16
     config.eval_batch_size = 16
-    config.num_training_epochs = 300
+    config.num_training_epochs = 350
     config.rng_seed = 42
     steps_per_epoch = TRAIN_SIZE // config.batch_size
     total_steps = config.num_training_epochs * steps_per_epoch
@@ -115,7 +115,19 @@ def get_config():
     # config.pretrained_weights = '/home/admin/john/scenic/loca_same_group_attn_masking_0_25/checkpoint_468700'
     # config.pretrained_weights = '/home/admin/john/scenic/loca_mmearth64_small_16patches_224size_sen2grouped/checkpoint_937500'
     # config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_same_group_mask_ref_and_query/checkpoint_468700'
-    config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_same_group_attn_masking_0_25/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/satellite-loca/scenic/loca_same_group_attn_masking_0_25/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_add_dem_early_fuse/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_add_dem_early_concat_with_group_sampling/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_attn_masking_enc_cross_0_4_masking/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_attn_masking_enc_cross_0_3_masking/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_no_attn_masking_enc_cross_0_4_masking/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_attn_masking_enc_cross_0_0_masking/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_attn_masking_enc_cross_0_4_masking_correct_band_order/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_no_attn_masking_enc_cross_0_0_masking/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_attn_masking_enc_cross_0_4_masking_correct_band_order_full_s1/checkpoint_468700'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_300k_224s_16p/checkpoint_937500'
+    # config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_no_attn_masking_enc_cross_0_4_masking_correct_band_order_full_s1/checkpoint_468700'
+    config.pretrained_weights = '/home/admin/john/scenic/loca_s1_s2_dem_no_attn_masking_enc_cross_0_0_masking_correct_band_order_full_s1/checkpoint_468700'
 
     # Learning rate.
     config.lr_configs = ml_collections.ConfigDict()
