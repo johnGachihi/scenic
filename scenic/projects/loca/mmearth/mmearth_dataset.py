@@ -18,12 +18,12 @@ class MMEarthBuilder(tfds.core.GeneratorBasedBuilder):
             builder=self,
             features=tfds.features.FeaturesDict({
                 'sentinel2': tfds.features.Tensor(
-                    shape=(12, 64, 64), 
+                    shape=(12, 64, 64),
                     dtype=np.dtype("uint16"),
                     encoding="zlib"
                 ),
                 'sentinel1': tfds.features.Tensor(
-                    shape=(8, 64, 64), 
+                    shape=(8, 64, 64),
                     dtype=np.dtype("float32"),
                     encoding="zlib"
                 ),

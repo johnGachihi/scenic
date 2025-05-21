@@ -113,9 +113,9 @@ class MultiModalToTokenSequence(nn.Module):
       elif self.multimodal_type == 'early_fuse_s1_to_all':
         x = x_sen2 + jnp.expand_dims(x_sen1, axis=2)
 
-    if self.multimodal_type == 'early_concat_s2_and_s1' or self.multimodal_type == 'early_concat_s2_s1_dem':
+    elif self.multimodal_type == 'early_concat_s2_and_s1' or self.multimodal_type == 'early_concat_s2_s1_dem':
       x = x_sen2
-    elif self.multimodal_type == 'early_concat_s2_and_s1_early_fuse_dem':
+    elif self.multimodal_type == 'early_concat_s2_and_s1_early_fusion_dem':
       dem = jnp.expand_dims(x[:, :, :, 20], axis=-1)  # (B, H, W, 1)
       dem = nn.Conv(self.hidden_size, (fh, fw), strides=(fh, fw), padding='VALID',
                     name='embedding_dem')(dem)  # [B, Hp, Wp, hidden_size]
@@ -290,7 +290,7 @@ class ToTokenSequence(nn.Module):
 def token_indexes_not_to_drop(seqlen, n_tokens, seqlen_selection, rng):
   """Returns only the token indexes to keep in a sequence of tokens."""
   idx_kept_tokens = jnp.arange(n_tokens)
-  if seqlen > 0 and seqlen <= n_tokens:
+  if seqlen >= 0 and seqlen <= n_tokens:
     if seqlen_selection in ['consecutive', 'first']:
       if seqlen_selection == 'first':
         offset = 0
@@ -357,6 +357,8 @@ class ViT4LOCA(nn.Module):
                debug: bool = False, sow_weights: bool = False):
     del debug
     # Input image -> sequence of patch tokens.
+    num_channels = None
+    idx_kept_groups = None
     if self.multimodal_type:
       x, idx_kept_tokens, idx_kept_groups, num_channels = MultiModalToTokenSequence(
         patches=self.patches,
@@ -432,7 +434,8 @@ class ViT4LOCA(nn.Module):
         seqlen, self.n_ref_positions, seqlen_selection, rng)
       if len(idx_kept_tokens) < self.n_ref_positions:
         patches_repr = jnp.take(patches_repr, idx_kept_tokens, axis=1)
-        idx_kept_groups = jnp.take(idx_kept_groups, idx_kept_tokens, axis=1)
+        if idx_kept_groups is not None:
+          idx_kept_groups = jnp.take(idx_kept_groups, idx_kept_tokens, axis=1)
 
     # Query patches look at those of the reference through cross attention.
     same_group_cross_attn_mask = None
